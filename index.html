@@ -266,22 +266,28 @@ input[type="color"]#custom-col {
 
 /* ── Mobile options row ── */
 #mobile-opts {
-  display: none; flex-shrink: 0;
+  display: none; flex-shrink: 0; flex-direction: column;
   background: var(--bg); border-top: 1px solid var(--border);
-  padding: 8px 12px; gap: 12px; align-items: center;
+  padding: 8px 12px 10px; gap: 8px;
+}
+#m-color-bar {
+  display: flex; align-items: center; gap: 8px;
   overflow-x: auto; scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  height: 60px;
 }
-#mobile-opts::-webkit-scrollbar { display: none; }
+#m-color-bar::-webkit-scrollbar { display: none; }
+#m-ctrl-bar {
+  display: flex; align-items: center; gap: 8px;
+}
 .m-csw {
-  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
   cursor: pointer; border: 2px solid transparent; transition: transform var(--fast);
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 .m-csw:active { transform: scale(0.9); }
 .m-csw.sel { border-color: var(--fg); border-width: 3px; }
-#m-stroke { flex: 0 0 100px; accent-color: var(--accent); }
+#m-stroke { flex: 1; accent-color: var(--accent); }
+#m-font-sz { flex: 1; accent-color: var(--accent); }
 .m-act-btn {
   flex-shrink: 0; padding: 6px 12px; font-size: 12px;
   border: 1px solid var(--border); border-radius: var(--r-sm);
@@ -322,7 +328,7 @@ input[type="color"]#custom-col {
   #opts { display: none; }
   #mobile-bar { display: flex; }
   #mobile-opts { display: flex; }
-  #toast { bottom: 144px; }
+  #toast { bottom: 200px; }
 }
 </style>
 </head>
@@ -663,15 +669,21 @@ input[type="color"]#custom-col {
 
 <!-- Mobile color/stroke row -->
 <div id="mobile-opts">
-  <span id="m-ctx-label" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#bbb;flex-shrink:0;white-space:nowrap;">下一個</span>
-  <div id="m-color-row" style="display:flex;gap:4px;flex-shrink:0;"></div>
-  <input type="color" id="m-custom-col" value="#FF3B30" style="width:34px;height:34px;border:1px solid var(--border);border-radius:50%;padding:1px;cursor:pointer;flex-shrink:0;box-shadow: 0 1px 4px rgba(0,0,0,0.15);">
-  <input type="range" id="m-stroke" min="1" max="24" value="6">
-  <span style="font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0;" id="m-stroke-v">6</span>
-  <input type="range" id="m-font-sz" min="12" max="250" value="180" style="display:none;flex:0 0 100px;accent-color:var(--accent);">
-  <span style="display:none;font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0;" id="m-font-v">180</span>
-  <button id="m-edit-btn" onclick="editSelectedText()" style="display:none;flex-shrink:0;padding:4px 8px;font-size:11px;background:#eff6ff;color:#2f6feb;border:1px solid #bfdbfe;border-radius:6px;cursor:pointer;white-space:nowrap;font-weight:600;">✏ 編輯</button>
-  <button id="m-delete-btn" onclick="deleteSelected()" style="display:none;flex-shrink:0;padding:4px 8px;font-size:11px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;white-space:nowrap;font-weight:600;">✕ 刪除</button>
+  <!-- 上排：情境標籤 + 顏色 -->
+  <div id="m-color-bar">
+    <span id="m-ctx-label" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#bbb;flex-shrink:0;white-space:nowrap;">下一個</span>
+    <div id="m-color-row" style="display:flex;gap:6px;flex-shrink:0;"></div>
+    <input type="color" id="m-custom-col" value="#FF3B30" style="width:38px;height:38px;border:1px solid var(--border);border-radius:50%;padding:1px;cursor:pointer;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.15);">
+  </div>
+  <!-- 下排：粗細/大小滑桿 + 操作按鈕 -->
+  <div id="m-ctrl-bar">
+    <input type="range" id="m-stroke" min="1" max="24" value="6">
+    <span style="font-size:12px;color:var(--muted);font-family:var(--mono);flex-shrink:0;min-width:24px;text-align:right;" id="m-stroke-v">6</span>
+    <input type="range" id="m-font-sz" min="12" max="250" value="180" style="display:none;">
+    <span style="display:none;font-size:12px;color:var(--muted);font-family:var(--mono);flex-shrink:0;min-width:30px;text-align:right;" id="m-font-v">180</span>
+    <button id="m-edit-btn" onclick="editSelectedText()" style="display:none;flex-shrink:0;padding:6px 12px;font-size:13px;background:#eff6ff;color:#2f6feb;border:1px solid #bfdbfe;border-radius:8px;cursor:pointer;white-space:nowrap;font-weight:600;">✏ 編輯</button>
+    <button id="m-delete-btn" onclick="deleteSelected()" style="display:none;flex-shrink:0;padding:6px 12px;font-size:13px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;cursor:pointer;white-space:nowrap;font-weight:600;">✕ 刪除</button>
+  </div>
 </div>
 
 <!-- Text input modal -->
