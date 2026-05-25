@@ -428,21 +428,35 @@ input[type="color"]#custom-col {
         </div>
       </div>
       <canvas id="main-canvas"></canvas>
-      <!-- Floating delete button for selected element -->
-      <button id="floating-delete-btn" onclick="deleteSelected()" title="刪除選取標記">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:20px; height:20px;">
-          <polyline points="3,6 5,6 21,6"/>
-          <path d="M19 6l-1 14H6L5 6"/>
-          <path d="M10 11v6m4-6v6"/>
-          <path d="M9 6V4h6v2"/>
-        </svg>
-      </button>
+      <!-- Floating action bar (shown when annotation is selected) -->
+      <div id="floating-action-bar" style="
+        display:none; position:absolute; z-index:150;
+        transform:translateX(-50%); pointer-events:all;
+      ">
+        <div style="
+          background:#1c1c1e; border-radius:8px; padding:5px 10px;
+          display:flex; gap:8px; box-shadow:0 3px 12px rgba(0,0,0,0.35);
+          align-items:center;
+        ">
+          <button id="fab-edit" onclick="editSelectedText()" style="
+            display:none; font-size:12px; color:white;
+            background:rgba(59,130,246,0.7); border:none;
+            border-radius:5px; padding:5px 10px; cursor:pointer; font-weight:600;
+          ">✏ 編輯</button>
+          <button id="fab-delete" onclick="deleteSelected()" style="
+            font-size:12px; color:white;
+            background:rgba(239,68,68,0.7); border:none;
+            border-radius:5px; padding:5px 10px; cursor:pointer; font-weight:600;
+          ">✕ 刪除</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- Desktop options panel -->
   <aside id="opts">
     <div class="sect">
+      <div id="panel-context-label" class="sect-label" style="color:var(--muted); margin-bottom:4px; font-size:9px;">下一個標注的設定</div>
       <div class="sect-label">顏色</div>
       <div class="color-grid" id="color-grid"></div>
       <input type="color" id="custom-col" value="#FF3B30" title="自訂顏色">
@@ -450,26 +464,22 @@ input[type="color"]#custom-col {
     <div class="sect">
       <div class="sect-label">線條粗細</div>
       <div class="slider-row">
-        <input type="range" id="stroke-w" min="1" max="24" value="3">
-        <span class="sval" id="stroke-v">3</span>
+        <input type="range" id="stroke-w" min="1" max="24" value="6">
+        <span class="sval" id="stroke-v">6</span>
       </div>
     </div>
     <div class="sect">
       <div class="sect-label">文字大小</div>
       <div class="slider-row">
-        <input type="range" id="font-sz" min="12" max="350" value="120">
-        <span class="sval" id="font-v">120</span>
+        <input type="range" id="font-sz" min="12" max="350" value="180">
+        <span class="sval" id="font-v">180</span>
       </div>
     </div>
-    <div class="sect" id="selected-opts-sect" style="display:none; background: #fef2f2; border-left: 3px solid var(--danger);">
-      <div class="sect-label" style="color: var(--danger);">選取標記</div>
+    <div class="sect" id="panel-edit-sect" style="display:none;">
+      <div class="sect-label">選取操作</div>
       <div class="btn-row">
-        <button class="btn-s red" onclick="deleteSelected()" style="width:100%; display:flex; align-items:center; justify-content:center; gap:6px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px; height:14px;">
-            <polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/>
-          </svg>
-          刪除選取標記
-        </button>
+        <button id="panel-edit-btn" class="btn-s prime" onclick="editSelectedText()" style="display:none;">✏ 編輯文字</button>
+        <button class="btn-s red" onclick="deleteSelected()">✕ 刪除</button>
       </div>
     </div>
     <div class="sect">
@@ -573,10 +583,13 @@ input[type="color"]#custom-col {
 
 <!-- Mobile color/stroke row -->
 <div id="mobile-opts">
+  <span id="m-ctx-label" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#bbb;flex-shrink:0;white-space:nowrap;">下一個</span>
   <div id="m-color-row" style="display:flex;gap:4px;flex-shrink:0;"></div>
   <input type="color" id="m-custom-col" value="#FF3B30" style="width:34px;height:34px;border:1px solid var(--border);border-radius:50%;padding:1px;cursor:pointer;flex-shrink:0;box-shadow: 0 1px 4px rgba(0,0,0,0.15);">
-  <input type="range" id="m-stroke" min="1" max="24" value="3">
-  <span style="font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0;" id="m-stroke-v">3</span>
+  <input type="range" id="m-stroke" min="1" max="24" value="6">
+  <span style="font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0;" id="m-stroke-v">6</span>
+  <button id="m-edit-btn" onclick="editSelectedText()" style="display:none;flex-shrink:0;padding:4px 8px;font-size:11px;background:#eff6ff;color:#2f6feb;border:1px solid #bfdbfe;border-radius:6px;cursor:pointer;white-space:nowrap;font-weight:600;">✏ 編輯</button>
+  <button id="m-delete-btn" onclick="deleteSelected()" style="display:none;flex-shrink:0;padding:4px 8px;font-size:11px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;white-space:nowrap;font-weight:600;">✕ 刪除</button>
 </div>
 
 <!-- Text input modal -->
@@ -610,7 +623,7 @@ const S = {
   img: null, annotations: [],
   undoStack: [], redoStack: [],
   tool: 'arrow', color: '#FF3B30',
-  strokeW: 3, fontSize: 120,
+  strokeW: 6, fontSize: 180,
   drawing: false, x0: 0, y0: 0,
   pts: [], numCount: 1,
   pendTx: 0, pendTy: 0,
@@ -622,7 +635,8 @@ const S = {
   isResizingSelected: false,
   activeHandle: null,
   initAnno: null,
-  initBox: null
+  initBox: null,
+  editingIdx: -1        // -1 = 新增文字；>= 0 = 編輯第 N 個標注
 };
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
@@ -1013,12 +1027,8 @@ function render(live) {
       drawSelectionBox(box.minX, box.minY, box.maxX, box.maxY);
     }
     
-    // Sync delete buttons
-    document.getElementById('selected-opts-sect').style.display = 'block';
-    document.getElementById('floating-delete-btn').style.display = 'flex';
+    // Sync delete buttons (old elements removed; wired in Task 2)
   } else {
-    document.getElementById('selected-opts-sect').style.display = 'none';
-    document.getElementById('floating-delete-btn').style.display = 'none';
   }
 }
 
