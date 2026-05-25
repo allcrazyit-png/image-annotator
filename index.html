@@ -876,7 +876,7 @@ function onDown(e) {
 function onMove(e) {
   const p = pt(e);
   
-  if (S.tool === 'select' && S.isResizingSelected && S.selectedIdx !== -1) {
+  if (S.isResizingSelected && S.selectedIdx !== -1) {
     const a = S.annotations[S.selectedIdx];
     const initA = S.initAnno;
     const box = S.initBox;
@@ -957,7 +957,7 @@ function onMove(e) {
     return;
   }
   
-  if (S.tool === 'select' && S.isDraggingSelected && S.selectedIdx !== -1) {
+  if (S.isDraggingSelected && S.selectedIdx !== -1) {
     const dx = p.x - S.dragStartX;
     const dy = p.y - S.dragStartY;
     if (dx !== 0 || dy !== 0) {
@@ -981,7 +981,7 @@ function onMove(e) {
     return;
   }
   
-  if (S.tool === 'select' && !S.isResizingSelected && !S.isDraggingSelected && S.selectedIdx !== -1) {
+  if (!S.isResizingSelected && !S.isDraggingSelected && S.selectedIdx !== -1) {
     const box = getBoundingBox(S.annotations[S.selectedIdx]);
     if (box) {
       const handle = findHitHandle(p, box);
@@ -998,19 +998,19 @@ function onMove(e) {
       canvas.style.cursor = 'move';
       return;
     }
-    canvas.style.cursor = 'default';
+    canvas.style.cursor = S.tool === 'select' ? 'default' : 'crosshair';
   }
-  
+
   if (!S.drawing || !S.img) return;
   if (S.tool === 'freehand' || S.tool === 'highlight') S.pts.push({ x:p.x, y:p.y });
   render(p);
 }
 
 function onUp(e) {
-  if (S.tool === 'select') {
+  if (S.tool === 'select' || S.isDraggingSelected || S.isResizingSelected) {
     S.isDraggingSelected = false;
     S.isResizingSelected = false;
-    canvas.style.cursor = 'default';
+    canvas.style.cursor = S.tool === 'select' ? 'default' : 'crosshair';
     return;
   }
   if (!S.drawing) return;
@@ -1033,6 +1033,11 @@ function onUp(e) {
     case 'mosaic':
       { const mx=Math.min(S.x0,p.x), my=Math.min(S.y0,p.y), mw=Math.abs(dx), mh=Math.abs(dy);
         if (mw > 4 && mh > 4) S.annotations.push({ type:'mosaic', x:mx, y:my, w:mw, h:mh }); } break;
+  }
+  // 自動選取剛畫好的標注
+  if (S.annotations.length > 0) {
+    S.selectedIdx = S.annotations.length - 1;
+    syncControlsFromSelected();
   }
   render();
 }
