@@ -647,6 +647,9 @@ const upPmt   = document.getElementById('upload-prompt');
 const txtModal= document.getElementById('text-modal');
 const txtFld  = document.getElementById('text-field');
 const toastEl = document.getElementById('toast');
+const fabBar    = document.getElementById('floating-action-bar');
+const fabEdit   = document.getElementById('fab-edit');
+const fabDelete = document.getElementById('fab-delete');
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 (function init() {
@@ -1054,11 +1057,55 @@ function render(live) {
     const box = getBoundingBox(S.annotations[S.selectedIdx]);
     if (box) {
       drawSelectionBox(box.minX, box.minY, box.maxX, box.maxY);
+      updateSelectionUI(box);
+    } else {
+      fabBar.style.display = 'none';
     }
-    
-    // Sync delete buttons (old elements removed; wired in Task 2)
   } else {
+    fabBar.style.display = 'none';
+    document.getElementById('panel-edit-sect').style.display = 'none';
+    document.getElementById('panel-context-label').textContent = '下一個標注的設定';
+    document.getElementById('m-ctx-label').textContent = '下一個';
+    document.getElementById('m-ctx-label').style.color = '#bbb';
+    document.getElementById('m-edit-btn').style.display = 'none';
+    document.getElementById('m-delete-btn').style.display = 'none';
   }
+}
+
+function updateSelectionUI(box) {
+  const a = S.annotations[S.selectedIdx];
+  if (!a) return;
+
+  // 懸浮操作列定位
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = rect.width / canvas.width;
+  const scaleY = rect.height / canvas.height;
+  const midX = ((box.minX + box.maxX) / 2) * scaleX + rect.left - wrapper.getBoundingClientRect().left;
+  const topY  = box.minY * scaleY + rect.top - wrapper.getBoundingClientRect().top - 44;
+
+  fabBar.style.left = midX + 'px';
+  fabBar.style.top  = Math.max(4, topY) + 'px';
+  fabBar.style.display = 'block';
+
+  // 「編輯文字」按鈕只對 text 類型顯示
+  const isText = (a.type === 'text');
+  fabEdit.style.display = isText ? 'inline-block' : 'none';
+
+  // 右側面板
+  const panelEditSect = document.getElementById('panel-edit-sect');
+  panelEditSect.style.display = 'block';
+  document.getElementById('panel-edit-btn').style.display = isText ? 'block' : 'none';
+
+  const typeNames = { arrow:'箭頭', text:'文字', circle:'圓圈', rect:'矩形', free:'手繪', hi:'螢光', num:'編號', mosaic:'馬賽克' };
+  const typeName = typeNames[a.type] || a.type;
+  document.getElementById('panel-context-label').textContent = `選取中：${typeName}`;
+
+  // 手機色條
+  const mCtxLabel = document.getElementById('m-ctx-label');
+  mCtxLabel.textContent = '選取中';
+  mCtxLabel.style.color = '#2f6feb';
+  document.getElementById('m-edit-btn').style.display = isText ? 'inline-flex' : 'none';
+  document.getElementById('m-delete-btn').style.display = 'inline-flex';
 }
 
 function drawSelectionBox(minX, minY, maxX, maxY) {
