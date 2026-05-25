@@ -799,6 +799,15 @@ function wireCanvas() {
   canvas.addEventListener('touchmove',   e => { e.preventDefault(); onMove(e); }, { passive: false });
   canvas.addEventListener('touchend',    e => { e.preventDefault(); onUp(e);   }, { passive: false });
   canvas.addEventListener('touchcancel', e => { e.preventDefault(); S.drawing = false; render(); }, { passive: false });
+  canvas.addEventListener('dblclick', e => {
+    if (!S.img) return;
+    const p = pt(e);
+    const hitIdx = findHitAnnotation(p);
+    if (hitIdx !== -1 && S.annotations[hitIdx].type === 'text') {
+      selectAnnotation(hitIdx);
+      editSelectedText();
+    }
+  });
 }
 
 function onDown(e) {
