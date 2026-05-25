@@ -445,8 +445,8 @@ input[type="color"]#custom-col {
     <div class="sect">
       <div class="sect-label">文字大小</div>
       <div class="slider-row">
-        <input type="range" id="font-sz" min="12" max="120" value="40">
-        <span class="sval" id="font-v">40</span>
+        <input type="range" id="font-sz" min="12" max="250" value="80">
+        <span class="sval" id="font-v">80</span>
       </div>
     </div>
     <div class="sect" id="selected-opts-sect" style="display:none; background: #fef2f2; border-left: 3px solid var(--danger);">
@@ -596,7 +596,7 @@ const S = {
   img: null, annotations: [],
   undoStack: [], redoStack: [],
   tool: 'arrow', color: '#FF3B30',
-  strokeW: 3, fontSize: 40,
+  strokeW: 3, fontSize: 80,
   drawing: false, x0: 0, y0: 0,
   pts: [], numCount: 1,
   pendTx: 0, pendTy: 0,
@@ -856,7 +856,7 @@ function onMove(e) {
         const distInit = Math.hypot(iax - fx, iay - fy);
         const distCurr = Math.hypot(p.x - fx, p.y - fy);
         const scale = distInit > 0 ? distCurr / distInit : 1;
-        a.fs = Math.max(12, Math.min(120, Math.round(initA.fs * scale)));
+        a.fs = Math.max(12, Math.min(250, Math.round(initA.fs * scale)));
         a.x = fx + (initA.x - fx) * (a.fs / initA.fs);
         a.y = fy + (initA.y - fy) * (a.fs / initA.fs);
         
