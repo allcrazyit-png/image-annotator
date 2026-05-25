@@ -245,41 +245,48 @@ input[type="color"]#custom-col {
   display: none;
   background: var(--surface); border-top: 1px solid var(--border);
   overflow-x: auto; scrollbar-width: none;
-  padding: 0 4px; flex-shrink: 0; height: 56px;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 8px; flex-shrink: 0; height: 68px;
   align-items: center;
+  gap: 6px;
 }
 #mobile-bar::-webkit-scrollbar { display: none; }
 
 .m-btn {
-  flex-shrink: 0; width: 48px; height: 48px; border: none;
+  flex-shrink: 0; width: 56px; height: 56px; border: none;
   background: transparent; border-radius: var(--r-sm); cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px; color: var(--muted); font-size: 9px;
-  transition: color var(--fast);
+  gap: 3px; color: var(--muted); font-size: 11px; font-weight: 500;
+  transition: color var(--fast), background var(--fast);
 }
-.m-btn svg { width: 19px; height: 19px; }
+.m-btn:active { background: rgba(0, 0, 0, 0.05); }
+.m-btn svg { width: 22px; height: 22px; }
 .m-btn.active { color: var(--accent); }
-.m-sep { flex-shrink: 0; width: 1px; height: 28px; background: var(--border); margin: 0 2px; }
+.m-sep { flex-shrink: 0; width: 1px; height: 32px; background: var(--border); margin: 0 4px; }
 
 /* ── Mobile options row ── */
 #mobile-opts {
   display: none; flex-shrink: 0;
   background: var(--bg); border-top: 1px solid var(--border);
-  padding: 6px 10px; gap: 6px; align-items: center;
-  overflow-x: auto; scrollbar-width: none; height: 46px;
+  padding: 8px 12px; gap: 12px; align-items: center;
+  overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  height: 60px;
 }
 #mobile-opts::-webkit-scrollbar { display: none; }
 .m-csw {
-  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
   cursor: pointer; border: 2px solid transparent; transition: transform var(--fast);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
-.m-csw:hover { transform: scale(1.15); }
-.m-csw.sel { border-color: var(--fg); }
+.m-csw:active { transform: scale(0.9); }
+.m-csw.sel { border-color: var(--fg); border-width: 3px; }
 #m-stroke { flex: 0 0 100px; accent-color: var(--accent); }
 .m-act-btn {
-  flex-shrink: 0; padding: 5px 10px; font-size: 12px;
+  flex-shrink: 0; padding: 6px 12px; font-size: 12px;
   border: 1px solid var(--border); border-radius: var(--r-sm);
   background: var(--surface); cursor: pointer; white-space: nowrap;
+  height: 34px; display: inline-flex; align-items: center; justify-content: center;
 }
 
 /* ── Responsive ── */
@@ -288,7 +295,7 @@ input[type="color"]#custom-col {
   #opts { display: none; }
   #mobile-bar { display: flex; }
   #mobile-opts { display: flex; }
-  #toast { bottom: 110px; }
+  #toast { bottom: 144px; }
 }
 </style>
 </head>
@@ -567,7 +574,7 @@ input[type="color"]#custom-col {
 <!-- Mobile color/stroke row -->
 <div id="mobile-opts">
   <div id="m-color-row" style="display:flex;gap:4px;flex-shrink:0;"></div>
-  <input type="color" id="m-custom-col" value="#FF3B30" style="width:26px;height:26px;border:1px solid var(--border);border-radius:50%;padding:1px;cursor:pointer;flex-shrink:0;">
+  <input type="color" id="m-custom-col" value="#FF3B30" style="width:34px;height:34px;border:1px solid var(--border);border-radius:50%;padding:1px;cursor:pointer;flex-shrink:0;box-shadow: 0 1px 4px rgba(0,0,0,0.15);">
   <input type="range" id="m-stroke" min="1" max="24" value="3">
   <span style="font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0;" id="m-stroke-v">3</span>
 </div>
