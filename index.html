@@ -289,6 +289,33 @@ input[type="color"]#custom-col {
   height: 34px; display: inline-flex; align-items: center; justify-content: center;
 }
 
+/* ── Mobile tab bar ── */
+#mobile-tab-bar {
+  display: none;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#mobile-tab-bar button {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color var(--fast), border-color var(--fast);
+}
+#mobile-tab-bar button.m-tab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+@media (max-width: 640px) {
+  #mobile-tab-bar { display: flex; }
+}
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
   #sidebar { display: none; }
@@ -512,73 +539,126 @@ input[type="color"]#custom-col {
   </aside>
 </div>
 
+<!-- Mobile tool tab bar -->
+<div id="mobile-tab-bar">
+  <button id="tab-btn-common" class="m-tab-active" onclick="switchMobileTab('common')">常用工具</button>
+  <button id="tab-btn-all" onclick="switchMobileTab('all')">全部工具</button>
+</div>
+
 <!-- Mobile toolbar -->
 <div id="mobile-bar">
-  <button class="m-btn" onclick="triggerUpload()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
-    上傳
-  </button>
-  <div class="m-sep"></div>
-  <button class="m-btn" data-tool="select" onclick="setTool('select')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/>
-    </svg>
-    選擇
-  </button>
-  <button class="m-btn active" data-tool="arrow" onclick="setTool('arrow')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9,5 19,5 19,15"/></svg>
-    箭頭
-  </button>
-  <button class="m-btn" data-tool="text" onclick="setTool('text')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="4,7 4,4 20,4 20,7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-    文字
-  </button>
-  <button class="m-btn" data-tool="circle" onclick="setTool('circle')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>
-    橢圓
-  </button>
-  <button class="m-btn" data-tool="rect" onclick="setTool('rect')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="1"/></svg>
-    矩形
-  </button>
-  <button class="m-btn" data-tool="freehand" onclick="setTool('freehand')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20 C6 16 8 13 11 14 S16 17 19 14 S22 8 21 6"/></svg>
-    手繪
-  </button>
-  <button class="m-btn" data-tool="highlight" onclick="setTool('highlight')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5L19 9L9 19L4 20L5 15Z"/></svg>
-    螢光
-  </button>
-  <button class="m-btn" data-tool="number" onclick="setTool('number')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
-    編號
-  </button>
-  <button class="m-btn" data-tool="mosaic" onclick="setTool('mosaic')">
-    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="4" height="4" opacity=".4"/><rect x="10" y="3" width="4" height="4" opacity=".8"/><rect x="17" y="3" width="4" height="4" opacity=".4"/><rect x="3" y="10" width="4" height="4" opacity=".8"/><rect x="10" y="10" width="4" height="4"/><rect x="17" y="10" width="4" height="4" opacity=".8"/><rect x="3" y="17" width="4" height="4" opacity=".4"/><rect x="10" y="17" width="4" height="4" opacity=".8"/><rect x="17" y="17" width="4" height="4" opacity=".4"/></svg>
-    馬賽克
-  </button>
-  <div class="m-sep"></div>
-  <button class="m-btn" onclick="undo()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9,14 4,9 9,4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
-    復原
-  </button>
-  <button class="m-btn" onclick="redo()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15,14 20,9 15,4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
-    重做
-  </button>
-  <div class="m-sep"></div>
-  <button class="m-btn" onclick="doDownload()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-    下載
-  </button>
-  <button class="m-btn" onclick="doShare()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16,6 12,2 8,6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-    分享
-  </button>
-  <button class="m-btn" onclick="saveDraft()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
-    草稿
-  </button>
+  <!-- 常用工具（預設） -->
+  <div id="tab-common-content" style="display:flex;align-items:center;padding:0 8px;gap:6px;width:100%;overflow-x:auto;scrollbar-width:none;">
+    <button class="m-btn" onclick="triggerUpload()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+      上傳
+    </button>
+    <div class="m-sep"></div>
+    <button class="m-btn active" data-tool="arrow" onclick="setTool('arrow')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9,5 19,5 19,15"/></svg>
+      箭頭
+    </button>
+    <button class="m-btn" data-tool="text" onclick="setTool('text')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="4,7 4,4 20,4 20,7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+      文字
+    </button>
+    <button class="m-btn" data-tool="circle" onclick="setTool('circle')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>
+      圓圈
+    </button>
+    <button class="m-btn" data-tool="number" onclick="setTool('number')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+      編號
+    </button>
+    <div class="m-sep"></div>
+    <button class="m-btn" onclick="undo()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9,14 4,9 9,4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+      復原
+    </button>
+    <button class="m-btn" onclick="redo()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15,14 20,9 15,4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
+      重做
+    </button>
+    <div class="m-sep"></div>
+    <button class="m-btn" onclick="doDownload()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      下載
+    </button>
+    <button class="m-btn" onclick="doShare()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16,6 12,2 8,6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+      分享
+    </button>
+  </div>
+  <!-- 全部工具 -->
+  <div id="tab-all-content" style="display:none;align-items:center;padding:0 8px;gap:6px;width:100%;overflow-x:auto;scrollbar-width:none;">
+    <button class="m-btn" onclick="triggerUpload()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+      上傳
+    </button>
+    <div class="m-sep"></div>
+    <button class="m-btn" data-tool="select" onclick="setTool('select')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+      選擇
+    </button>
+    <button class="m-btn" data-tool="arrow" onclick="setTool('arrow')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9,5 19,5 19,15"/></svg>
+      箭頭
+    </button>
+    <button class="m-btn" data-tool="text" onclick="setTool('text')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="4,7 4,4 20,4 20,7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+      文字
+    </button>
+    <button class="m-btn" data-tool="circle" onclick="setTool('circle')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>
+      橢圓
+    </button>
+    <button class="m-btn" data-tool="rect" onclick="setTool('rect')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="1"/></svg>
+      矩形
+    </button>
+    <button class="m-btn" data-tool="freehand" onclick="setTool('freehand')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20 C6 16 8 13 11 14 S16 17 19 14 S22 8 21 6"/></svg>
+      手繪
+    </button>
+    <button class="m-btn" data-tool="highlight" onclick="setTool('highlight')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5L19 9L9 19L4 20L5 15Z"/></svg>
+      螢光
+    </button>
+    <button class="m-btn" data-tool="number" onclick="setTool('number')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+      編號
+    </button>
+    <button class="m-btn" data-tool="mosaic" onclick="setTool('mosaic')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="4" height="4" opacity=".4"/><rect x="10" y="3" width="4" height="4" opacity=".8"/><rect x="17" y="3" width="4" height="4" opacity=".4"/><rect x="3" y="10" width="4" height="4" opacity=".8"/><rect x="10" y="10" width="4" height="4"/><rect x="17" y="10" width="4" height="4" opacity=".8"/><rect x="3" y="17" width="4" height="4" opacity=".4"/><rect x="10" y="17" width="4" height="4" opacity=".8"/><rect x="17" y="17" width="4" height="4" opacity=".4"/></svg>
+      馬賽克
+    </button>
+    <div class="m-sep"></div>
+    <button class="m-btn" onclick="undo()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9,14 4,9 9,4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+      復原
+    </button>
+    <button class="m-btn" onclick="redo()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15,14 20,9 15,4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
+      重做
+    </button>
+    <div class="m-sep"></div>
+    <button class="m-btn" onclick="doDownload()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      下載
+    </button>
+    <button class="m-btn" onclick="doShare()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16,6 12,2 8,6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+      分享
+    </button>
+    <button class="m-btn" onclick="saveDraft()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+      草稿
+    </button>
+    <button class="m-btn" onclick="clearAll()" style="color:var(--danger);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/></svg>
+      清除
+    </button>
+  </div>
 </div>
 
 <!-- Mobile color/stroke row -->
@@ -658,6 +738,10 @@ const fabDelete = document.getElementById('fab-delete');
   wireCanvas();
   canvas.style.display = 'none';
   checkDraftBanner();
+  try {
+    const savedTab = localStorage.getItem('annotator-tab');
+    if (savedTab === 'all') switchMobileTab('all');
+  } catch {}
 })();
 
 // ─── Palette UI ───────────────────────────────────────────────────────────────
@@ -1620,6 +1704,26 @@ function showToast(msg) {
   toastEl.classList.add('show');
   clearTimeout(_tt);
   _tt = setTimeout(() => toastEl.classList.remove('show'), 2200);
+}
+
+// ─── Mobile tab switching ─────────────────────────────────────────────────────
+function switchMobileTab(tab) {
+  const common = document.getElementById('tab-common-content');
+  const all    = document.getElementById('tab-all-content');
+  const btnCommon = document.getElementById('tab-btn-common');
+  const btnAll    = document.getElementById('tab-btn-all');
+  if (tab === 'common') {
+    common.style.display = 'flex';
+    all.style.display = 'none';
+    btnCommon.classList.add('m-tab-active');
+    btnAll.classList.remove('m-tab-active');
+  } else {
+    common.style.display = 'none';
+    all.style.display = 'flex';
+    btnCommon.classList.remove('m-tab-active');
+    btnAll.classList.add('m-tab-active');
+  }
+  try { localStorage.setItem('annotator-tab', tab); } catch {}
 }
 </script>
 </body>
