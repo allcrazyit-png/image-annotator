@@ -668,6 +668,8 @@ input[type="color"]#custom-col {
   <input type="color" id="m-custom-col" value="#FF3B30" style="width:34px;height:34px;border:1px solid var(--border);border-radius:50%;padding:1px;cursor:pointer;flex-shrink:0;box-shadow: 0 1px 4px rgba(0,0,0,0.15);">
   <input type="range" id="m-stroke" min="1" max="24" value="6">
   <span style="font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0;" id="m-stroke-v">6</span>
+  <input type="range" id="m-font-sz" min="12" max="250" value="180" style="display:none;flex:0 0 100px;accent-color:var(--accent);">
+  <span style="display:none;font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0;" id="m-font-v">180</span>
   <button id="m-edit-btn" onclick="editSelectedText()" style="display:none;flex-shrink:0;padding:4px 8px;font-size:11px;background:#eff6ff;color:#2f6feb;border:1px solid #bfdbfe;border-radius:6px;cursor:pointer;white-space:nowrap;font-weight:600;">✏ 編輯</button>
   <button id="m-delete-btn" onclick="deleteSelected()" style="display:none;flex-shrink:0;padding:4px 8px;font-size:11px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;white-space:nowrap;font-weight:600;">✕ 刪除</button>
 </div>
@@ -800,6 +802,16 @@ function wireControls() {
     document.getElementById('m-stroke-v').textContent = e.target.value;
     if (S.selectedIdx !== -1) updateSelectedProperty('strokeW', +e.target.value);
   });
+  const mfs = document.getElementById('m-font-sz');
+  mfs.addEventListener('mousedown', sliderStartDrag);
+  mfs.addEventListener('touchstart', sliderStartDrag);
+  mfs.addEventListener('input', e => {
+    S.fontSize = +e.target.value;
+    document.getElementById('font-sz').value = e.target.value;
+    document.getElementById('font-v').textContent = e.target.value;
+    document.getElementById('m-font-v').textContent = e.target.value;
+    if (S.selectedIdx !== -1) updateSelectedProperty('fontSize', +e.target.value);
+  });
 
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
@@ -904,7 +916,6 @@ function onDown(e) {
     const hitIdx = findHitAnnotation(p);
     if (hitIdx !== -1 && S.annotations[hitIdx].type === 'text') {
       selectAnnotation(hitIdx);
-      editSelectedText();
       return;
     }
     S.pendTx = p.x; S.pendTy = p.y;
@@ -1162,6 +1173,10 @@ function render(live) {
     document.getElementById('m-ctx-label').style.color = '#bbb';
     document.getElementById('m-edit-btn').style.display = 'none';
     document.getElementById('m-delete-btn').style.display = 'none';
+    document.getElementById('m-stroke').style.display = '';
+    document.getElementById('m-stroke-v').style.display = '';
+    document.getElementById('m-font-sz').style.display = 'none';
+    document.getElementById('m-font-v').style.display = 'none';
   }
 }
 
@@ -1199,6 +1214,11 @@ function updateSelectionUI(box) {
   mCtxLabel.style.color = '#2f6feb';
   document.getElementById('m-edit-btn').style.display = isText ? 'inline-flex' : 'none';
   document.getElementById('m-delete-btn').style.display = 'inline-flex';
+  // 文字選取時顯示字體大小滑桿，隱藏粗細滑桿；反之亦然
+  document.getElementById('m-stroke').style.display = isText ? 'none' : '';
+  document.getElementById('m-stroke-v').style.display = isText ? 'none' : '';
+  document.getElementById('m-font-sz').style.display = isText ? '' : 'none';
+  document.getElementById('m-font-v').style.display = isText ? '' : 'none';
 }
 
 function drawSelectionBox(minX, minY, maxX, maxY) {
@@ -1627,6 +1647,8 @@ function syncControlsFromSelected() {
     S.fontSize = a.fs;
     document.getElementById('font-sz').value = a.fs;
     document.getElementById('font-v').textContent = a.fs;
+    document.getElementById('m-font-sz').value = a.fs;
+    document.getElementById('m-font-v').textContent = a.fs;
   }
 }
 
