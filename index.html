@@ -461,6 +461,8 @@ input[type="color"]#custom-col {
         </div>
       </div>
       <canvas id="main-canvas"></canvas>
+      <!-- Reset zoom button (shown when zoom > 1) -->
+      <button id="reset-zoom-btn" onclick="resetZoom()" style="display:none;position:absolute;top:8px;right:8px;z-index:130;background:rgba(0,0,0,0.55);color:white;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;align-items:center;gap:6px;backdrop-filter:blur(4px);">⤢ 重置縮放</button>
       <!-- Floating action bar (shown when annotation is selected) -->
       <div id="floating-action-bar" style="
         display:none; position:absolute; z-index:150;
@@ -497,14 +499,14 @@ input[type="color"]#custom-col {
     <div class="sect">
       <div class="sect-label">線條粗細</div>
       <div class="slider-row">
-        <input type="range" id="stroke-w" min="1" max="24" value="6">
+        <input type="range" id="stroke-w" min="1" max="48" value="6">
         <span class="sval" id="stroke-v">6</span>
       </div>
     </div>
     <div class="sect">
       <div class="sect-label">文字大小</div>
       <div class="slider-row">
-        <input type="range" id="font-sz" min="12" max="350" value="180">
+        <input type="range" id="font-sz" min="12" max="700" value="180">
         <span class="sval" id="font-v">180</span>
       </div>
     </div>
@@ -677,9 +679,9 @@ input[type="color"]#custom-col {
   </div>
   <!-- 下排：粗細/大小滑桿 + 操作按鈕 -->
   <div id="m-ctrl-bar">
-    <input type="range" id="m-stroke" min="1" max="24" value="6">
+    <input type="range" id="m-stroke" min="1" max="48" value="6">
     <span style="font-size:12px;color:var(--muted);font-family:var(--mono);flex-shrink:0;min-width:24px;text-align:right;" id="m-stroke-v">6</span>
-    <input type="range" id="m-font-sz" min="12" max="250" value="180" style="display:none;">
+    <input type="range" id="m-font-sz" min="12" max="700" value="180" style="display:none;">
     <span style="display:none;font-size:12px;color:var(--muted);font-family:var(--mono);flex-shrink:0;min-width:30px;text-align:right;" id="m-font-v">180</span>
     <button id="m-edit-btn" onclick="editSelectedText()" style="display:none;flex-shrink:0;padding:6px 12px;font-size:13px;background:#eff6ff;color:#2f6feb;border:1px solid #bfdbfe;border-radius:8px;cursor:pointer;white-space:nowrap;font-weight:600;">✏ 編輯</button>
     <button id="m-delete-btn" onclick="deleteSelected()" style="display:none;flex-shrink:0;padding:6px 12px;font-size:13px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;cursor:pointer;white-space:nowrap;font-weight:600;">✕ 刪除</button>
@@ -730,7 +732,11 @@ const S = {
   activeHandle: null,
   initAnno: null,
   initBox: null,
-  editingIdx: -1        // -1 = 新增文字；>= 0 = 編輯第 N 個標注
+  editingIdx: -1,       // -1 = 新增文字；>= 0 = 編輯第 N 個標注
+  // Zoom / pan
+  zoom: 1, panX: 0, panY: 0,
+  isPinching: false, pinchDist0: 0, pinchZoom0: 1,
+  pinchPanX0: 0, pinchPanY0: 0, pinchImgMidX: 0, pinchImgMidY: 0
 };
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
@@ -870,6 +876,7 @@ function loadURL(url, resetAnno) {
   const img = new Image();
   img.onload = () => {
     S.img = img;
+    S.zoom = 1; S.panX = 0; S.panY = 0; // reset zoom on new image
     if (resetAnno) {
       S.annotations = []; S.undoStack = []; S.redoStack = []; S.numCount = 1;
     }
@@ -894,7 +901,21 @@ function pt(e) {
     : (e.changedTouches && e.changedTouches.length > 0)
       ? e.changedTouches[0]
       : e;
-  return { x: (src.clientX - rect.left) * sx, y: (src.clientY - rect.top) * sy };
+  const cx = (src.clientX - rect.left) * sx;
+  const cy = (src.clientY - rect.top) * sy;
+  // Convert canvas pixel coords → image coords (accounting for zoom/pan)
+  return { x: (cx - S.panX) / S.zoom, y: (cy - S.panY) / S.zoom };
+}
+
+function clampPan() {
+  if (S.zoom <= 1) { S.panX = 0; S.panY = 0; return; }
+  S.panX = Math.min(0, Math.max(canvas.width  * (1 - S.zoom), S.panX));
+  S.panY = Math.min(0, Math.max(canvas.height * (1 - S.zoom), S.panY));
+}
+
+function resetZoom() {
+  S.zoom = 1; S.panX = 0; S.panY = 0;
+  render();
 }
 
 // ─── Canvas events ────────────────────────────────────────────────────────────
@@ -903,10 +924,68 @@ function wireCanvas() {
   canvas.addEventListener('mousemove', onMove);
   canvas.addEventListener('mouseup', onUp);
   canvas.addEventListener('mouseleave', e => { if (S.drawing) onUp(e); });
-  canvas.addEventListener('touchstart',  e => { e.preventDefault(); onDown(e); }, { passive: false });
-  canvas.addEventListener('touchmove',   e => { e.preventDefault(); onMove(e); }, { passive: false });
-  canvas.addEventListener('touchend',    e => { e.preventDefault(); onUp(e);   }, { passive: false });
-  canvas.addEventListener('touchcancel', e => { e.preventDefault(); S.drawing = false; render(); }, { passive: false });
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (e.touches.length >= 2) {
+      // 雙指：進入 pinch 模式，取消任何進行中的繪圖/拖移
+      S.drawing = false; S.isDraggingSelected = false; S.isResizingSelected = false;
+      S.isPinching = true;
+      const r = canvas.getBoundingClientRect();
+      const sx = canvas.width / r.width, sy = canvas.height / r.height;
+      S.pinchDist0 = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+      S.pinchZoom0 = S.zoom; S.pinchPanX0 = S.panX; S.pinchPanY0 = S.panY;
+      const midCX = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left) * sx;
+      const midCY = ((e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top) * sy;
+      S.pinchImgMidX = (midCX - S.panX) / S.zoom;
+      S.pinchImgMidY = (midCY - S.panY) / S.zoom;
+    } else {
+      S.isPinching = false;
+      onDown(e);
+    }
+  }, { passive: false });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (S.isPinching && e.touches.length >= 2) {
+      const r = canvas.getBoundingClientRect();
+      const sx = canvas.width / r.width, sy = canvas.height / r.height;
+      const dist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+      const midCX = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left) * sx;
+      const midCY = ((e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top) * sy;
+      const newZoom = Math.max(1, Math.min(6, S.pinchZoom0 * dist / S.pinchDist0));
+      S.zoom = newZoom;
+      // 保持初始 pinch 中心點的影像座標不動（同時支援 zoom + pan）
+      S.panX = midCX - S.pinchImgMidX * newZoom;
+      S.panY = midCY - S.pinchImgMidY * newZoom;
+      clampPan();
+      render();
+    } else if (!S.isPinching) {
+      onMove(e);
+    }
+  }, { passive: false });
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    if (e.touches.length < 2) S.isPinching = false;
+    if (e.touches.length === 0) onUp(e);
+  }, { passive: false });
+  canvas.addEventListener('touchcancel', e => { e.preventDefault(); S.isPinching = false; S.drawing = false; render(); }, { passive: false });
+  // 桌機滾輪縮放
+  canvas.addEventListener('wheel', e => {
+    if (!S.img) return;
+    e.preventDefault();
+    const r = canvas.getBoundingClientRect();
+    const sx = canvas.width / r.width, sy = canvas.height / r.height;
+    const midCX = (e.clientX - r.left) * sx;
+    const midCY = (e.clientY - r.top) * sy;
+    const imgMidX = (midCX - S.panX) / S.zoom;
+    const imgMidY = (midCY - S.panY) / S.zoom;
+    const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
+    const newZoom = Math.max(1, Math.min(6, S.zoom * factor));
+    S.zoom = newZoom;
+    S.panX = midCX - imgMidX * newZoom;
+    S.panY = midCY - imgMidY * newZoom;
+    clampPan();
+    render();
+  }, { passive: false });
   canvas.addEventListener('dblclick', e => {
     if (!S.img) return;
     const p = pt(e);
@@ -1164,15 +1243,22 @@ function onUp(e) {
 // ─── Render ───────────────────────────────────────────────────────────────────
 function render(live) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.setTransform(S.zoom, 0, 0, S.zoom, S.panX, S.panY);
   if (S.img) ctx.drawImage(S.img, 0, 0, canvas.width, canvas.height);
   S.annotations.forEach(drawA);
   if (S.drawing && live) { const prev = mkPreview(live); if (prev) drawA(prev); }
-  
-  // Selection box rendering
+  if (S.selectedIdx !== -1) {
+    const box = getBoundingBox(S.annotations[S.selectedIdx]);
+    if (box) drawSelectionBox(box.minX, box.minY, box.maxX, box.maxY);
+  }
+  ctx.restore();
+
+  // DOM UI updates (no canvas calls below)
+  document.getElementById('reset-zoom-btn').style.display = S.zoom > 1.01 ? 'flex' : 'none';
   if (S.selectedIdx !== -1) {
     const box = getBoundingBox(S.annotations[S.selectedIdx]);
     if (box) {
-      drawSelectionBox(box.minX, box.minY, box.maxX, box.maxY);
       updateSelectionUI(box);
     } else {
       fabBar.style.display = 'none';
@@ -1196,12 +1282,16 @@ function updateSelectionUI(box) {
   const a = S.annotations[S.selectedIdx];
   if (!a) return;
 
-  // 懸浮操作列定位
+  // 懸浮操作列定位（需考慮 zoom/pan）
   const rect = canvas.getBoundingClientRect();
   const scaleX = rect.width / canvas.width;
   const scaleY = rect.height / canvas.height;
-  const midX = ((box.minX + box.maxX) / 2) * scaleX + rect.left - wrapper.getBoundingClientRect().left;
-  const topY  = box.minY * scaleY + rect.top - wrapper.getBoundingClientRect().top - 44;
+  // image coords → canvas pixel → CSS pixel
+  const midCanvasX = (box.minX + box.maxX) / 2 * S.zoom + S.panX;
+  const topCanvasY = box.minY * S.zoom + S.panY;
+  const wrapRect = wrapper.getBoundingClientRect();
+  const midX = midCanvasX * scaleX + rect.left - wrapRect.left;
+  const topY  = topCanvasY * scaleY + rect.top - wrapRect.top - 44;
 
   fabBar.style.left = midX + 'px';
   fabBar.style.top  = Math.max(4, topY) + 'px';
@@ -1235,31 +1325,24 @@ function updateSelectionUI(box) {
 
 function drawSelectionBox(minX, minY, maxX, maxY) {
   ctx.save();
+  const iz = 1 / S.zoom; // compensate so visual size stays constant regardless of zoom
   ctx.strokeStyle = '#2f6feb';
-  ctx.lineWidth = 2.5;
-  ctx.setLineDash([8, 6]);
+  ctx.lineWidth = 2.5 * iz;
+  ctx.setLineDash([8 * iz, 6 * iz]);
   ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetX = 1;
-  ctx.shadowOffsetY = 1;
+  ctx.shadowBlur = 6 * iz;
+  ctx.shadowOffsetX = iz; ctx.shadowOffsetY = iz;
   ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
-  
-  // Handles - Circular high-contrast dots
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#2f6feb';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2 * iz;
   ctx.setLineDash([]);
-  const corners = [
-    [minX, minY],
-    [maxX, minY],
-    [minX, maxY],
-    [maxX, maxY]
-  ];
+  ctx.shadowColor = 'transparent';
+  const corners = [[minX, minY],[maxX, minY],[minX, maxY],[maxX, maxY]];
   corners.forEach(([cx, cy]) => {
     ctx.beginPath();
-    ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    ctx.arc(cx, cy, 6 * iz, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
   });
   ctx.restore();
 }
@@ -1455,7 +1538,17 @@ function clearAll() {
 // ─── Export ───────────────────────────────────────────────────────────────────
 function needImg() { if (!S.img) { showToast('請先上傳圖片'); return false; } return true; }
 
-function getBlob(cb) { canvas.toBlob(cb, 'image/png'); }
+function getBlob(cb) {
+  // Export always at zoom=1 so the full annotated image is saved
+  const z = S.zoom, px = S.panX, py = S.panY;
+  S.zoom = 1; S.panX = 0; S.panY = 0;
+  render();
+  canvas.toBlob(blob => {
+    S.zoom = z; S.panX = px; S.panY = py;
+    render();
+    cb(blob);
+  }, 'image/png');
+}
 
 function doDownload() {
   if (!needImg()) return;
