@@ -801,49 +801,73 @@ function wireCanvas() {
 function onDown(e) {
   if (!S.img) return;
   const p = pt(e);
-  
-  if (S.tool === 'select') {
-    if (S.selectedIdx !== -1) {
-      const box = getBoundingBox(S.annotations[S.selectedIdx]);
-      if (box) {
-        const handle = findHitHandle(p, box);
-        if (handle) {
-          S.isResizingSelected = true;
-          S.activeHandle = handle;
-          S.initAnno = JSON.parse(JSON.stringify(S.annotations[S.selectedIdx]));
-          S.initBox = box;
-          pushUndo();
-          return;
-        }
-      }
-    }
-    const hitIdx = findHitAnnotation(p);
-    if (hitIdx !== -1) {
-      S.selectedIdx = hitIdx;
-      S.isDraggingSelected = true;
-      S.dragStartX = p.x;
-      S.dragStartY = p.y;
-      S.hasMovedSelected = false;
-      canvas.style.cursor = 'move';
-      syncControlsFromSelected();
-    } else {
-      S.selectedIdx = -1;
-    }
-    render();
-    return;
-  }
+
+  // ── 文字工具：點選位置，開啟輸入彈窗 ──
   if (S.tool === 'text') {
+    // 如果點到現有文字標注，改為編輯它
+    const hitIdx = findHitAnnotation(p);
+    if (hitIdx !== -1 && S.annotations[hitIdx].type === 'text') {
+      selectAnnotation(hitIdx);
+      editSelectedText();
+      return;
+    }
     S.pendTx = p.x; S.pendTy = p.y;
+    S.editingIdx = -1;
     txtFld.value = '';
     txtModal.classList.add('show');
     setTimeout(() => txtFld.focus(), 60);
     return;
   }
+
+  // ── 數字編號工具 ──
   if (S.tool === 'number') {
     pushUndo();
     S.annotations.push({ type:'num', x:p.x, y:p.y, n:S.numCount++, color:S.color, r:Math.max(16, S.strokeW * 5) });
-    render(); return;
+    S.selectedIdx = S.annotations.length - 1;
+    syncControlsFromSelected();
+    render();
+    return;
   }
+
+  // ── 通用命中偵測（適用所有工具，含 select 和繪圖工具）──
+  // 先檢查縮放把手（如果目前有選取）
+  if (S.selectedIdx !== -1) {
+    const box = getBoundingBox(S.annotations[S.selectedIdx]);
+    if (box) {
+      const handle = findHitHandle(p, box);
+      if (handle) {
+        S.isResizingSelected = true;
+        S.activeHandle = handle;
+        S.initAnno = JSON.parse(JSON.stringify(S.annotations[S.selectedIdx]));
+        S.initBox = box;
+        pushUndo();
+        return;
+      }
+    }
+  }
+
+  // 檢查是否點到既有標注
+  const hitIdx = findHitAnnotation(p);
+  if (hitIdx !== -1) {
+    selectAnnotation(hitIdx);
+    S.isDraggingSelected = true;
+    S.dragStartX = p.x;
+    S.dragStartY = p.y;
+    S.hasMovedSelected = false;
+    canvas.style.cursor = 'move';
+    return;
+  }
+
+  // 點到空白處：解除選取
+  if (S.selectedIdx !== -1) {
+    S.selectedIdx = -1;
+    render();
+  }
+
+  // select 工具點到空白處就結束
+  if (S.tool === 'select') return;
+
+  // ── 開始繪圖 ──
   S.drawing = true;
   S.x0 = p.x; S.y0 = p.y;
   S.pts = [{ x:p.x, y:p.y }];
@@ -1440,6 +1464,12 @@ function syncControlsFromSelected() {
     document.getElementById('font-sz').value = a.fs;
     document.getElementById('font-v').textContent = a.fs;
   }
+}
+
+function selectAnnotation(idx) {
+  S.selectedIdx = idx;
+  syncControlsFromSelected();
+  render();
 }
 
 function findHitAnnotation(p) {
