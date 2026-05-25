@@ -1266,10 +1266,29 @@ function confirmText() {
   txtModal.classList.remove('show');
   if (!txt) return;
   pushUndo();
-  S.annotations.push({ type:'text', x:S.pendTx, y:S.pendTy, text:txt, color:S.color, fs:S.fontSize });
+  if (S.editingIdx >= 0) {
+    // 編輯既有文字
+    S.annotations[S.editingIdx].text = txt;
+    S.selectedIdx = S.editingIdx;
+    S.editingIdx = -1;
+  } else {
+    // 新增文字
+    S.annotations.push({ type:'text', x:S.pendTx, y:S.pendTy, text:txt, color:S.color, fs:S.fontSize });
+    S.selectedIdx = S.annotations.length - 1;
+    syncControlsFromSelected();
+  }
   render();
 }
 function cancelText() { txtModal.classList.remove('show'); }
+function editSelectedText() {
+  if (S.selectedIdx === -1) return;
+  const a = S.annotations[S.selectedIdx];
+  if (a.type !== 'text') return;
+  S.editingIdx = S.selectedIdx;
+  txtFld.value = a.text;
+  txtModal.classList.add('show');
+  setTimeout(() => { txtFld.focus(); txtFld.select(); }, 60);
+}
 txtFld.addEventListener('keydown', e => {
   if (e.key === 'Enter') confirmText();
   if (e.key === 'Escape') cancelText();
