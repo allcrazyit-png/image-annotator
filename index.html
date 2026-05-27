@@ -547,7 +547,7 @@ input[type="color"]#custom-col {
       </div>
     </div>
     <div style="padding: 12px; margin-top: auto; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-      <span>版本：v1.3.2 (穩定版)</span>
+      <span>版本：v1.3.3 (穩定版)</span>
       <span style="background: #eff6ff; color: var(--accent); padding: 2px 6px; border-radius: 4px; font-weight: 600; font-family: var(--mono);">PRO</span>
     </div>
   </aside>
@@ -584,9 +584,9 @@ input[type="color"]#custom-col {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>
       圓圈
     </button>
-    <button class="m-btn" data-tool="number" onclick="setTool('number')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
-      編號
+    <button class="m-btn" data-tool="select" onclick="setTool('select')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+      選擇
     </button>
     <div class="m-sep"></div>
     <button class="m-btn" onclick="undo()">
@@ -915,18 +915,14 @@ function rotateImage() {
   octx.translate(H / 2, W / 2);
   octx.rotate(Math.PI / 2);
   octx.drawImage(S.img, -W / 2, -H / 2, W, H);
-  const url = off.toDataURL('image/png');
-  const newImg = new Image();
-  newImg.onload = () => {
-    S.img = newImg;
-    canvas.width = H; canvas.height = W;
-    S.annotations = S.annotations.map(a => rotAnno90CW(a, H));
-    S.undoStack   = S.undoStack.map(snap => snap.map(a => rotAnno90CW(a, H)));
-    S.redoStack   = S.redoStack.map(snap => snap.map(a => rotAnno90CW(a, H)));
-    S.zoom = 1; S.panX = 0; S.panY = 0;
-    render();
-  };
-  newImg.src = url;
+  // Use the offscreen canvas directly as image source (sync, no data URL round-trip)
+  S.img = off;
+  canvas.width = H; canvas.height = W;
+  S.annotations = S.annotations.map(a => rotAnno90CW(a, H));
+  S.undoStack   = S.undoStack.map(snap => snap.map(a => rotAnno90CW(a, H)));
+  S.redoStack   = S.redoStack.map(snap => snap.map(a => rotAnno90CW(a, H)));
+  S.zoom = 1; S.panX = 0; S.panY = 0;
+  render();
 }
 
 function rotAnno90CW(a, H) {
