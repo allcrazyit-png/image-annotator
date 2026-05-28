@@ -348,6 +348,20 @@ input[type="color"]#custom-col {
   #mobile-opts { display: flex; }
   #toast { bottom: 200px; }
 }
+.tcf-btn {
+  display: none; position: absolute; z-index: 160;
+  width: 36px; height: 36px;
+  border-radius: 50%; border: none; cursor: pointer;
+  align-items: center; justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  transform: translate(-50%, -50%);
+  transition: transform 0.12s;
+}
+.tcf-btn:hover { transform: translate(-50%,-50%) scale(1.12); }
+.tcf-btn.visible { display: flex; }
+.tcf-dark { background: #1c1c1e; color: #fff; }
+.tcf-light { background: #fff; color: #1c1c1e; }
+#tcf-resize { cursor: grab; }
 </style>
 </head>
 <body>
@@ -498,6 +512,17 @@ input[type="color"]#custom-col {
       </div>
       <!-- Reset zoom button (shown when zoom > 1) -->
       <button id="reset-zoom-btn" onclick="resetZoom()" style="display:none;position:absolute;top:8px;right:8px;z-index:130;background:rgba(0,0,0,0.55);color:white;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;align-items:center;gap:6px;backdrop-filter:blur(4px);">⤢ 重置縮放</button>
+      <!-- Text corner FAB (shown when text annotation is selected) -->
+      <!-- Text corner FAB buttons (individually positioned) -->
+      <button id="tcf-delete" class="tcf-btn tcf-dark" onclick="deleteSelected()" title="刪除">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <button id="tcf-edit" class="tcf-btn tcf-light" onclick="editSelectedText()" title="編輯文字">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      <button id="tcf-resize" class="tcf-btn tcf-light" title="縮放 / 旋轉">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      </button>
       <!-- Floating action bar (shown when annotation is selected) -->
       <div id="floating-action-bar" style="
         display:none; position:absolute; z-index:150;
@@ -534,15 +559,15 @@ input[type="color"]#custom-col {
     <div class="sect">
       <div class="sect-label">線條粗細</div>
       <div class="slider-row">
-        <input type="range" id="stroke-w" min="1" max="48" value="6">
-        <span class="sval" id="stroke-v">6</span>
+        <input type="range" id="stroke-w" min="1" max="48" value="25">
+        <span class="sval" id="stroke-v">25</span>
       </div>
     </div>
     <div class="sect">
       <div class="sect-label">文字大小</div>
       <div class="slider-row">
-        <input type="range" id="font-sz" min="12" max="700" value="180">
-        <span class="sval" id="font-v">180</span>
+        <input type="range" id="font-sz" min="12" max="700" value="250">
+        <span class="sval" id="font-v">250</span>
       </div>
     </div>
     <div class="sect" id="panel-edit-sect" style="display:none;">
@@ -576,7 +601,7 @@ input[type="color"]#custom-col {
       </div>
     </div>
     <div style="padding: 12px; margin-top: auto; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-      <span>版本：v1.3.5 (穩定版)</span>
+      <span>版本：v1.3.6 (穩定版)</span>
       <span style="background: #eff6ff; color: var(--accent); padding: 2px 6px; border-radius: 4px; font-weight: 600; font-family: var(--mono);">PRO</span>
     </div>
   </aside>
@@ -730,10 +755,10 @@ input[type="color"]#custom-col {
   </div>
   <!-- 下排：粗細/大小滑桿 + 操作按鈕 -->
   <div id="m-ctrl-bar">
-    <input type="range" id="m-stroke" min="1" max="48" value="6">
-    <span style="font-size:12px;color:var(--muted);font-family:var(--mono);flex-shrink:0;min-width:24px;text-align:right;" id="m-stroke-v">6</span>
-    <input type="range" id="m-font-sz" min="12" max="700" value="180" style="display:none;">
-    <span style="display:none;font-size:12px;color:var(--muted);font-family:var(--mono);flex-shrink:0;min-width:30px;text-align:right;" id="m-font-v">180</span>
+    <input type="range" id="m-stroke" min="1" max="48" value="25">
+    <span style="font-size:12px;color:var(--muted);font-family:var(--mono);flex-shrink:0;min-width:24px;text-align:right;" id="m-stroke-v">25</span>
+    <input type="range" id="m-font-sz" min="12" max="700" value="250" style="display:none;">
+    <span style="display:none;font-size:12px;color:var(--muted);font-family:var(--mono);flex-shrink:0;min-width:30px;text-align:right;" id="m-font-v">250</span>
     <button id="m-edit-btn" onclick="editSelectedText()" style="display:none;flex-shrink:0;padding:6px 12px;font-size:13px;background:#eff6ff;color:#2f6feb;border:1px solid #bfdbfe;border-radius:8px;cursor:pointer;white-space:nowrap;font-weight:600;">✏ 編輯</button>
     <button id="m-delete-btn" onclick="deleteSelected()" style="display:none;flex-shrink:0;padding:6px 12px;font-size:13px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;cursor:pointer;white-space:nowrap;font-weight:600;">✕ 刪除</button>
   </div>
@@ -770,7 +795,7 @@ const S = {
   img: null, annotations: [],
   undoStack: [], redoStack: [],
   tool: 'arrow', color: '#FF3B30',
-  strokeW: 6, fontSize: 180,
+  strokeW: 25, fontSize: 250,
   drawing: false, x0: 0, y0: 0,
   pts: [], numCount: 1,
   pendTx: 0, pendTy: 0,
@@ -791,6 +816,10 @@ const S = {
   // Crop
   cropRect: null,
   cropDragCorner: null,
+  // Text corner FAB resize drag
+  tcfResizing: false,
+  tcfResizeStartAngle: 0, tcfResizeStartDist: 0,
+  tcfResizeStartFs: 0, tcfResizeStartRot: 0,
 };
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
@@ -804,6 +833,10 @@ const toastEl = document.getElementById('toast');
 const fabBar    = document.getElementById('floating-action-bar');
 const fabEdit   = document.getElementById('fab-edit');
 const fabDelete = document.getElementById('fab-delete');
+const tcfDelete = document.getElementById('tcf-delete');
+const tcfEdit   = document.getElementById('tcf-edit');
+const tcfResize = document.getElementById('tcf-resize');
+const tcfBtns   = [tcfDelete, tcfEdit, tcfResize];
 
 // ─── Scene cache (used during crop to avoid re-drawing image+annotations) ────
 let _sceneCache = null;
@@ -1150,24 +1183,22 @@ function onDown(e) {
     return;
   }
 
-  // ── 文字工具：點選位置，開啟輸入彈窗 ──
+  // ── 文字工具 ──
   if (S.tool === 'text') {
-    // 已選取時先檢查 resize handle
-    if (S.selectedIdx !== -1) {
+    // 已選取文字：點選框內拖曳，點框外取消選取
+    if (S.selectedIdx !== -1 && S.annotations[S.selectedIdx].type === 'text') {
       const box = getBoundingBox(S.annotations[S.selectedIdx]);
-      if (box) {
-        const handle = findHitHandle(p, box);
-        if (handle) {
-          S.isResizingSelected = true;
-          S.activeHandle = handle;
-          S.initAnno = JSON.parse(JSON.stringify(S.annotations[S.selectedIdx]));
-          S.initBox = box;
-          pushUndo();
-          return;
-        }
+      if (box && p.x >= box.minX && p.x <= box.maxX && p.y >= box.minY && p.y <= box.maxY) {
+        S.isDraggingSelected = true;
+        S.dragStartX = p.x; S.dragStartY = p.y;
+        S.hasMovedSelected = false;
+        canvas.style.cursor = 'move';
+        return;
       }
+      S.selectedIdx = -1;
+      render();
     }
-    // 如果點到現有文字標注，改為拖移
+    // 點到現有文字：選取並拖曳
     const hitIdx = findHitAnnotation(p);
     if (hitIdx !== -1 && S.annotations[hitIdx].type === 'text') {
       selectAnnotation(hitIdx);
@@ -1177,6 +1208,7 @@ function onDown(e) {
       canvas.style.cursor = 'move';
       return;
     }
+    // 空白處：新增文字
     S.pendTx = p.x; S.pendTy = p.y;
     S.editingIdx = -1;
     txtFld.value = '';
@@ -1461,8 +1493,13 @@ function render(live) {
     S.annotations.forEach(drawA);
     if (S.drawing && live) { const prev = mkPreview(live); if (prev) drawA(prev); }
     if (S.selectedIdx !== -1) {
-      const box = getBoundingBox(S.annotations[S.selectedIdx]);
-      if (box) drawSelectionBox(box.minX, box.minY, box.maxX, box.maxY);
+      const selA = S.annotations[S.selectedIdx];
+      if (selA.type === 'text') {
+        drawTextSelectionBox(selA);
+      } else {
+        const box = getBoundingBox(selA);
+        if (box) drawSelectionBox(box.minX, box.minY, box.maxX, box.maxY);
+      }
     }
   }
   if (S.tool === 'crop') drawCropOverlay(S.cropRect, live);
@@ -1480,6 +1517,7 @@ function render(live) {
     }
   } else {
     fabBar.style.display = 'none';
+    tcfBtns.forEach(b => b.classList.remove('visible'));
     document.getElementById('panel-edit-sect').style.display = 'none';
     document.getElementById('panel-context-label').textContent = '下一個標注的設定';
     document.getElementById('m-ctx-label').textContent = '下一個';
@@ -1497,24 +1535,40 @@ function updateSelectionUI(box) {
   const a = S.annotations[S.selectedIdx];
   if (!a) return;
 
-  // 懸浮操作列定位（需考慮 zoom/pan）
+  const isText = (a.type === 'text');
   const rect = canvas.getBoundingClientRect();
   const scaleX = rect.width / canvas.width;
   const scaleY = rect.height / canvas.height;
-  // image coords → canvas pixel → CSS pixel
-  const midCanvasX = (box.minX + box.maxX) / 2 * S.zoom + S.panX;
-  const topCanvasY = box.minY * S.zoom + S.panY;
   const wrapRect = wrapper.getBoundingClientRect();
-  const midX = midCanvasX * scaleX + rect.left - wrapRect.left;
-  const topY  = topCanvasY * scaleY + rect.top - wrapRect.top - 44;
+  const canvasOffX = rect.left - wrapRect.left;
+  const canvasOffY = rect.top  - wrapRect.top;
 
-  fabBar.style.left = midX + 'px';
-  fabBar.style.top  = Math.max(4, topY) + 'px';
-  fabBar.style.display = 'block';
+  if (isText) {
+    // 文字：corner FAB，根據旋轉後的角落定位
+    const corners = getTextCornersCss(a);
+    function placeBtn(btn, pos) {
+      btn.style.left = pos.x + 'px';
+      btn.style.top  = pos.y + 'px';
+      btn.classList.add('visible');
+    }
+    placeBtn(tcfDelete, corners.tl);
+    placeBtn(tcfEdit,   corners.tr);
+    placeBtn(tcfResize, corners.br);
+    fabBar.style.display = 'none';
+  } else {
+    tcfBtns.forEach(b => b.classList.remove('visible'));
+    // 非文字：傳統 fabBar
+    const midCanvasX = (box.minX + box.maxX) / 2 * S.zoom + S.panX;
+    const topCanvasY = box.minY * S.zoom + S.panY;
+    const midX = midCanvasX * scaleX + canvasOffX;
+    const topY = topCanvasY * scaleY + canvasOffY - 44;
+    fabBar.style.left = midX + 'px';
+    fabBar.style.top  = Math.max(4, topY) + 'px';
+    fabBar.style.display = 'block';
+  }
 
-  // 「編輯文字」按鈕只對 text 類型顯示
-  const isText = (a.type === 'text');
-  fabEdit.style.display = isText ? 'inline-block' : 'none';
+  // fabEdit 只對非文字類型顯示（文字用 corner FAB）
+  fabEdit.style.display = 'none';
 
   // 右側面板
   const panelEditSect = document.getElementById('panel-edit-sect');
@@ -1538,7 +1592,44 @@ function updateSelectionUI(box) {
   document.getElementById('m-font-v').style.display = isText ? '' : 'none';
 }
 
-function drawSelectionBox(minX, minY, maxX, maxY) {
+function drawTextSelectionBox(a) {
+  ctx.save();
+  const iz = 1 / S.zoom;
+  ctx.font = `bold ${a.fs}px Inter, system-ui, sans-serif`;
+  const tw = ctx.measureText(a.text).width, th = a.fs;
+  const tcx = a.x + tw / 2, tcy = a.y - th / 2;
+  const pad = 6, hw = tw / 2 + pad, hh = th / 2 + pad;
+  ctx.translate(tcx, tcy);
+  ctx.rotate(a.rot || 0);
+  ctx.strokeStyle = '#2f6feb';
+  ctx.lineWidth = 2.5 * iz;
+  ctx.setLineDash([8 * iz, 6 * iz]);
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur = 6 * iz; ctx.shadowOffsetX = iz; ctx.shadowOffsetY = iz;
+  ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+  ctx.restore();
+}
+
+function getTextCornersCss(a) {
+  ctx.save();
+  ctx.font = `bold ${a.fs}px Inter, system-ui, sans-serif`;
+  const tw = ctx.measureText(a.text).width, th = a.fs;
+  ctx.restore();
+  const pad = 6, hw = tw / 2 + pad, hh = th / 2 + pad;
+  const tcx = a.x + tw / 2, tcy = a.y - th / 2;
+  const rot = a.rot || 0, cos = Math.cos(rot), sin = Math.sin(rot);
+  const rect = canvas.getBoundingClientRect();
+  const wrapRect = wrapper.getBoundingClientRect();
+  const sx = rect.width / canvas.width, sy = rect.height / canvas.height;
+  const ox = rect.left - wrapRect.left, oy = rect.top - wrapRect.top;
+  function toCSS(lx, ly) {
+    const rx = lx * cos - ly * sin + tcx, ry = lx * sin + ly * cos + tcy;
+    return { x: (rx * S.zoom + S.panX) * sx + ox, y: (ry * S.zoom + S.panY) * sy + oy };
+  }
+  return { tl: toCSS(-hw,-hh), tr: toCSS(hw,-hh), br: toCSS(hw,hh) };
+}
+
+function drawSelectionBox(minX, minY, maxX, maxY, showHandles = true) {
   ctx.save();
   const iz = 1 / S.zoom;
 
@@ -1553,19 +1644,21 @@ function drawSelectionBox(minX, minY, maxX, maxY) {
   ctx.setLineDash([]);
   ctx.shadowColor = 'transparent';
 
-  // Corner handles — larger squares with strong shadow
-  const hs = 11 * iz;
+  if (!showHandles) { ctx.restore(); return; }
+
+  // Corner handles
+  const hs = 15 * iz;
   const corners = [[minX, minY],[maxX, minY],[minX, maxY],[maxX, maxY]];
   corners.forEach(([cx, cy]) => {
-    ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    ctx.shadowBlur = 6 * iz;
-    ctx.shadowOffsetY = 2 * iz;
+    ctx.shadowColor = 'rgba(0,0,0,0.72)';
+    ctx.shadowBlur = 10 * iz;
+    ctx.shadowOffsetX = iz; ctx.shadowOffsetY = 3 * iz;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(cx - hs, cy - hs, hs * 2, hs * 2);
     ctx.shadowColor = 'transparent';
-    ctx.shadowOffsetY = 0;
+    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
     ctx.strokeStyle = '#2f6feb';
-    ctx.lineWidth = 2.5 * iz;
+    ctx.lineWidth = 3.5 * iz;
     ctx.strokeRect(cx - hs, cy - hs, hs * 2, hs * 2);
   });
   ctx.restore();
@@ -1609,7 +1702,10 @@ function rArrow(a) {
   ctx.strokeStyle = ctx.fillStyle = a.color;
   ctx.lineWidth = a.w; ctx.lineCap = 'round';
   shadow();
-  ctx.beginPath(); ctx.moveTo(a.x1, a.y1); ctx.lineTo(a.x2, a.y2); ctx.stroke();
+  // 停在三角形底邊中心點（cos(π/6)≈0.866），避免超出三角形範圍
+  const back = hl * Math.cos(Math.PI / 6);
+  const bx = a.x2 - back * Math.cos(ang), by = a.y2 - back * Math.sin(ang);
+  ctx.beginPath(); ctx.moveTo(a.x1, a.y1); ctx.lineTo(bx, by); ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(a.x2, a.y2);
   ctx.lineTo(a.x2 - hl*Math.cos(ang - Math.PI/6), a.y2 - hl*Math.sin(ang - Math.PI/6));
@@ -1619,9 +1715,12 @@ function rArrow(a) {
 
 function rText(a) {
   ctx.font = `bold ${a.fs}px Inter, system-ui, sans-serif`;
+  const tw = ctx.measureText(a.text).width;
+  const tcx = a.x + tw / 2, tcy = a.y - a.fs / 2;
   ctx.fillStyle = a.color;
   ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 5;
   ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1;
+  if (a.rot) { ctx.translate(tcx, tcy); ctx.rotate(a.rot); ctx.translate(-tcx, -tcy); }
   ctx.fillText(a.text, a.x, a.y);
 }
 
@@ -1725,6 +1824,61 @@ txtFld.addEventListener('keydown', e => {
   if (e.key === 'Enter') confirmText();
   if (e.key === 'Escape') cancelText();
 });
+
+// ── Text corner FAB resize/rotate drag ──
+function tcfGetCenter(a) {
+  ctx.save();
+  ctx.font = `bold ${a.fs}px Inter, system-ui, sans-serif`;
+  const tw = ctx.measureText(a.text).width;
+  ctx.restore();
+  const th = a.fs;
+  const imgCx = a.x + tw / 2, imgCy = a.y - th / 2;
+  const rect = canvas.getBoundingClientRect();
+  const sx = rect.width / canvas.width, sy = rect.height / canvas.height;
+  return {
+    x: (imgCx * S.zoom + S.panX) * sx + rect.left,
+    y: (imgCy * S.zoom + S.panY) * sy + rect.top
+  };
+}
+function tcfResizeStart(clientX, clientY) {
+  if (S.selectedIdx === -1) return;
+  const a = S.annotations[S.selectedIdx];
+  if (a.type !== 'text') return;
+  pushUndo();
+  const c = tcfGetCenter(a);
+  S.tcfResizing = true;
+  S.tcfResizeStartAngle = Math.atan2(clientY - c.y, clientX - c.x);
+  S.tcfResizeStartDist  = Math.hypot(clientX - c.x, clientY - c.y);
+  S.tcfResizeStartFs    = a.fs;
+  S.tcfResizeStartRot   = a.rot || 0;
+}
+function tcfResizeMove(clientX, clientY) {
+  if (!S.tcfResizing || S.selectedIdx === -1) return;
+  const a = S.annotations[S.selectedIdx];
+  if (a.type !== 'text') return;
+  const c = tcfGetCenter(a);
+  const angle = Math.atan2(clientY - c.y, clientX - c.x);
+  const dist  = Math.hypot(clientX - c.x, clientY - c.y);
+  a.rot = S.tcfResizeStartRot + (angle - S.tcfResizeStartAngle);
+  const ratio = S.tcfResizeStartDist > 0 ? dist / S.tcfResizeStartDist : 1;
+  a.fs = Math.max(12, Math.min(700, Math.round(S.tcfResizeStartFs * ratio)));
+  S.fontSize = a.fs;
+  document.getElementById('font-sz').value = a.fs;
+  document.getElementById('font-v').textContent = a.fs;
+  document.getElementById('m-font-sz').value = a.fs;
+  document.getElementById('m-font-v').textContent = a.fs;
+  scheduleRender();
+}
+tcfResize.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); tcfResizeStart(e.clientX, e.clientY); });
+tcfResize.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); tcfResizeStart(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+document.addEventListener('mousemove', e => { tcfResizeMove(e.clientX, e.clientY); });
+document.addEventListener('touchmove', e => {
+  if (!S.tcfResizing) return;
+  e.preventDefault();
+  tcfResizeMove(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+document.addEventListener('mouseup', () => { S.tcfResizing = false; });
+document.addEventListener('touchend', () => { S.tcfResizing = false; });
 
 // ─── Undo / Redo ──────────────────────────────────────────────────────────────
 function snap() { return JSON.parse(JSON.stringify({ a: S.annotations, n: S.numCount })); }
@@ -1905,8 +2059,13 @@ function getBoundingBox(a) {
     const w = ctx.measureText(a.text).width;
     ctx.restore();
     const h = a.fs;
-    minX = a.x - 6; maxX = a.x + w + 6;
-    minY = a.y - h - 6; maxY = a.y + 6;
+    const rot = a.rot || 0;
+    const tcx = a.x + w / 2, tcy = a.y - h / 2;
+    const hw = w / 2 + 6, hh = h / 2 + 6;
+    const cosA = Math.abs(Math.cos(rot)), sinA = Math.abs(Math.sin(rot));
+    const aabbHW = hw * cosA + hh * sinA, aabbHH = hw * sinA + hh * cosA;
+    minX = tcx - aabbHW; maxX = tcx + aabbHW;
+    minY = tcy - aabbHH; maxY = tcy + aabbHH;
   } else if (a.type === 'num') {
     minX = a.x - a.r - 6; maxX = a.x + a.r + 6;
     minY = a.y - a.r - 6; maxY = a.y + a.r + 6;
@@ -2025,8 +2184,12 @@ function checkHit(a, p) {
       const w = ctx.measureText(a.text).width;
       ctx.restore();
       const h = a.fs;
-      return p.x >= a.x - 4 && p.x <= a.x + w + 4 &&
-             p.y >= a.y - h - 4 && p.y <= a.y + 4;
+      const rot = a.rot || 0;
+      const tcx = a.x + w / 2, tcy = a.y - h / 2;
+      const cos = Math.cos(-rot), sin = Math.sin(-rot);
+      const dx = p.x - tcx, dy = p.y - tcy;
+      const lx = dx * cos - dy * sin, ly = dx * sin + dy * cos;
+      return Math.abs(lx) <= w / 2 + 4 && Math.abs(ly) <= h / 2 + 4;
     }
     case 'mosaic':
       return p.x >= a.x && p.x <= a.x + a.w &&
