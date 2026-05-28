@@ -322,6 +322,24 @@ input[type="color"]#custom-col {
   #mobile-tab-bar { display: flex; }
 }
 
+/* ── Crop confirm bar ── */
+#crop-confirm-bar {
+  display: none;
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  background: #1c1c1e;
+  border-radius: 8px;
+  padding: 8px 14px;
+  gap: 10px;
+  align-items: center;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.45);
+  white-space: nowrap;
+}
+#crop-confirm-bar.show { display: flex; }
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
   #sidebar { display: none; }
@@ -407,6 +425,12 @@ input[type="color"]#custom-col {
         <text x="12" y="16.5" text-anchor="middle" fill="currentColor" font-size="10" font-weight="700" stroke="none" font-family="system-ui">1</text>
       </svg>
     </button>
+    <button class="tool-btn" data-tool="crop" onclick="setTool('crop')" title="裁切圖片">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 2v14a2 2 0 0 0 2 2h14"/>
+        <path d="M18 22V8a2 2 0 0 0-2-2H2"/>
+      </svg>
+    </button>
     <button class="tool-btn" data-tool="mosaic" onclick="setTool('mosaic')" title="馬賽克遮罩">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <rect x="3" y="3" width="4" height="4" opacity=".35"/>
@@ -467,6 +491,11 @@ input[type="color"]#custom-col {
         </div>
       </div>
       <canvas id="main-canvas"></canvas>
+      <!-- Crop confirm bar (shown when crop rect is drawn) -->
+      <div id="crop-confirm-bar">
+        <button onclick="applyCrop()" style="font-size:12px;color:white;background:rgba(34,197,94,0.75);border:none;border-radius:5px;padding:5px 14px;cursor:pointer;font-weight:600;">✓ 確認裁切</button>
+        <button onclick="cancelCrop()" style="font-size:12px;color:white;background:rgba(239,68,68,0.75);border:none;border-radius:5px;padding:5px 14px;cursor:pointer;font-weight:600;">✕ 取消</button>
+      </div>
       <!-- Reset zoom button (shown when zoom > 1) -->
       <button id="reset-zoom-btn" onclick="resetZoom()" style="display:none;position:absolute;top:8px;right:8px;z-index:130;background:rgba(0,0,0,0.55);color:white;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;align-items:center;gap:6px;backdrop-filter:blur(4px);">⤢ 重置縮放</button>
       <!-- Floating action bar (shown when annotation is selected) -->
@@ -547,7 +576,7 @@ input[type="color"]#custom-col {
       </div>
     </div>
     <div style="padding: 12px; margin-top: auto; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-      <span>版本：v1.3.3 (穩定版)</span>
+      <span>版本：v1.3.4 (穩定版)</span>
       <span style="background: #eff6ff; color: var(--accent); padding: 2px 6px; border-radius: 4px; font-weight: 600; font-family: var(--mono);">PRO</span>
     </div>
   </aside>
@@ -570,6 +599,10 @@ input[type="color"]#custom-col {
     <button class="m-btn" onclick="rotateImage()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M21 13a9 9 0 1 1-3-7.7L21 8"/></svg>
       旋轉
+    </button>
+    <button class="m-btn" data-tool="crop" onclick="setTool('crop')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+      裁切
     </button>
     <div class="m-sep"></div>
     <button class="m-btn active" data-tool="arrow" onclick="setTool('arrow')">
@@ -616,6 +649,10 @@ input[type="color"]#custom-col {
     <button class="m-btn" onclick="rotateImage()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M21 13a9 9 0 1 1-3-7.7L21 8"/></svg>
       旋轉
+    </button>
+    <button class="m-btn" data-tool="crop" onclick="setTool('crop')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+      裁切
     </button>
     <div class="m-sep"></div>
     <button class="m-btn" data-tool="select" onclick="setTool('select')">
@@ -750,7 +787,9 @@ const S = {
   // Zoom / pan
   zoom: 1, panX: 0, panY: 0,
   isPinching: false, pinchDist0: 0, pinchZoom0: 1,
-  pinchPanX0: 0, pinchPanY0: 0, pinchImgMidX: 0, pinchImgMidY: 0
+  pinchPanX0: 0, pinchPanY0: 0, pinchImgMidX: 0, pinchImgMidY: 0,
+  // Crop
+  cropRect: null,
 };
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
@@ -870,6 +909,7 @@ function wireControls() {
 
 // ─── Tool ─────────────────────────────────────────────────────────────────────
 function setTool(t) {
+  if (t !== 'crop') S.cropRect = null;
   S.tool = t;
   S.selectedIdx = -1;
   document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
@@ -1059,6 +1099,15 @@ function wireCanvas() {
 function onDown(e) {
   if (!S.img) return;
   const p = pt(e);
+
+  // ── 裁切工具 ──
+  if (S.tool === 'crop') {
+    S.drawing = true;
+    S.x0 = p.x; S.y0 = p.y;
+    S.cropRect = null;
+    render();
+    return;
+  }
 
   // ── 文字工具：點選位置，開啟輸入彈窗 ──
   if (S.tool === 'text') {
@@ -1274,6 +1323,18 @@ function onUp(e) {
   S.drawing = false;
   const p = pt(e);
   const dx = p.x - S.x0, dy = p.y - S.y0;
+  if (S.tool === 'crop') {
+    if (Math.abs(dx) > 4 && Math.abs(dy) > 4) {
+      S.cropRect = {
+        x: Math.min(S.x0, p.x),
+        y: Math.min(S.y0, p.y),
+        w: Math.abs(dx),
+        h: Math.abs(dy)
+      };
+    }
+    render();
+    return;
+  }
   if (Math.hypot(dx, dy) < 3 && S.tool !== 'freehand' && S.tool !== 'highlight') { render(); return; }
   pushUndo();
   switch (S.tool) {
@@ -1311,9 +1372,11 @@ function render(live) {
     const box = getBoundingBox(S.annotations[S.selectedIdx]);
     if (box) drawSelectionBox(box.minX, box.minY, box.maxX, box.maxY);
   }
+  if (S.tool === 'crop') drawCropOverlay(S.cropRect, live);
   ctx.restore();
 
   // DOM UI updates (no canvas calls below)
+  document.getElementById('crop-confirm-bar').classList.toggle('show', S.tool === 'crop' && !!S.cropRect);
   document.getElementById('reset-zoom-btn').style.display = S.zoom > 1.01 ? 'flex' : 'none';
   if (S.selectedIdx !== -1) {
     const box = getBoundingBox(S.annotations[S.selectedIdx]);
@@ -1890,6 +1953,96 @@ function distToSeg(p, a, b) {
   let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
   t = Math.max(0, Math.min(1, t));
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+// ─── Crop ─────────────────────────────────────────────────────────────────────
+function drawCropOverlay(rect, live) {
+  let r;
+  if (S.drawing && live && !rect) {
+    r = { x: Math.min(S.x0, live.x), y: Math.min(S.y0, live.y),
+          w: Math.abs(live.x - S.x0), h: Math.abs(live.y - S.y0) };
+  } else if (rect) {
+    r = rect;
+  } else {
+    return;
+  }
+  if (r.w < 2 || r.h < 2) return;
+
+  const iz = 1 / S.zoom;
+  ctx.save();
+
+  // Dark overlay outside crop region (evenodd fill)
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
+  ctx.beginPath();
+  ctx.rect(0, 0, canvas.width, canvas.height);
+  ctx.rect(r.x, r.y, r.w, r.h);
+  ctx.fill('evenodd');
+
+  // Dashed border
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 2 * iz;
+  ctx.setLineDash([8 * iz, 4 * iz]);
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4 * iz;
+  ctx.strokeRect(r.x, r.y, r.w, r.h);
+  ctx.setLineDash([]);
+  ctx.shadowColor = 'transparent';
+
+  // Corner handles
+  const hs = 9 * iz;
+  [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]].forEach(([cx, cy]) => {
+    ctx.fillStyle = 'white';
+    ctx.fillRect(cx - hs / 2, cy - hs / 2, hs, hs);
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = iz;
+    ctx.strokeRect(cx - hs / 2, cy - hs / 2, hs, hs);
+  });
+
+  ctx.restore();
+}
+
+function applyCrop() {
+  if (!S.cropRect || !S.img) return;
+  const { x, y, w, h } = S.cropRect;
+  if (w < 4 || h < 4) { cancelCrop(); return; }
+
+  const cw = canvas.width, ch = canvas.height;
+  const off = document.createElement('canvas');
+  off.width = Math.round(w);
+  off.height = Math.round(h);
+  off.getContext('2d').drawImage(S.img, -x, -y, cw, ch);
+
+  S.img = off;
+  canvas.width = Math.round(w);
+  canvas.height = Math.round(h);
+
+  S.annotations = S.annotations.map(a => shiftAnno(a, -x, -y));
+  S.undoStack   = S.undoStack.map(snap => snap.map(a => shiftAnno(a, -x, -y)));
+  S.redoStack   = S.redoStack.map(snap => snap.map(a => shiftAnno(a, -x, -y)));
+
+  S.cropRect = null;
+  S.zoom = 1; S.panX = 0; S.panY = 0;
+  setTool('arrow');
+  render();
+  showToast('已裁切圖片');
+}
+
+function cancelCrop() {
+  S.cropRect = null;
+  setTool('arrow');
+}
+
+function shiftAnno(a, dx, dy) {
+  const b = JSON.parse(JSON.stringify(a));
+  switch (b.type) {
+    case 'arrow': case 'circle': case 'rect':
+      b.x1 += dx; b.y1 += dy; b.x2 += dx; b.y2 += dy; break;
+    case 'text': case 'num': case 'mosaic':
+      b.x += dx; b.y += dy; break;
+    case 'free': case 'hi':
+      b.pts = b.pts.map(p => ({ x: p.x + dx, y: p.y + dy })); break;
+  }
+  return b;
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
