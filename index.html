@@ -576,7 +576,7 @@ input[type="color"]#custom-col {
       </div>
     </div>
     <div style="padding: 12px; margin-top: auto; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-      <span>版本：v1.3.4 (穩定版)</span>
+      <span>版本：v1.3.5 (穩定版)</span>
       <span style="background: #eff6ff; color: var(--accent); padding: 2px 6px; border-radius: 4px; font-weight: 600; font-family: var(--mono);">PRO</span>
     </div>
   </aside>
@@ -790,11 +790,12 @@ const S = {
   pinchPanX0: 0, pinchPanY0: 0, pinchImgMidX: 0, pinchImgMidY: 0,
   // Crop
   cropRect: null,
+  cropDragCorner: null,
 };
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
 const canvas  = document.getElementById('main-canvas');
-const ctx     = canvas.getContext('2d');
+let ctx       = canvas.getContext('2d');
 const wrapper = document.getElementById('canvas-wrapper');
 const upPmt   = document.getElementById('upload-prompt');
 const txtModal= document.getElementById('text-modal');
@@ -803,6 +804,40 @@ const toastEl = document.getElementById('toast');
 const fabBar    = document.getElementById('floating-action-bar');
 const fabEdit   = document.getElementById('fab-edit');
 const fabDelete = document.getElementById('fab-delete');
+
+// ─── Scene cache (used during crop to avoid re-drawing image+annotations) ────
+let _sceneCache = null;
+
+function buildSceneCache() {
+  if (!S.img) return null;
+  const off = document.createElement('canvas');
+  off.width = canvas.width;
+  off.height = canvas.height;
+  const oc = off.getContext('2d');
+  if (!oc) return null;
+  oc.drawImage(S.img, 0, 0, canvas.width, canvas.height);
+  const savedCtx = ctx;
+  try {
+    ctx = oc;
+    S.annotations.forEach(drawA);
+  } finally {
+    ctx = savedCtx;
+  }
+  return off;
+}
+
+// ─── RAF-throttled render ─────────────────────────────────────────────────────
+let _rafId = null;
+let _rafLive;
+function scheduleRender(live) {
+  _rafLive = live;
+  if (_rafId !== null) return;
+  _rafId = requestAnimationFrame(() => {
+    _rafId = null;
+    render(_rafLive);
+    _rafLive = undefined;
+  });
+}
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 (function init() {
@@ -909,7 +944,8 @@ function wireControls() {
 
 // ─── Tool ─────────────────────────────────────────────────────────────────────
 function setTool(t) {
-  if (t !== 'crop') S.cropRect = null;
+  if (t !== 'crop') { S.cropRect = null; _sceneCache = null; }
+  else _sceneCache = buildSceneCache();
   S.tool = t;
   S.selectedIdx = -1;
   document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
@@ -1056,7 +1092,7 @@ function wireCanvas() {
       S.panX = midCX - S.pinchImgMidX * newZoom;
       S.panY = midCY - S.pinchImgMidY * newZoom;
       clampPan();
-      render();
+      scheduleRender();
     } else if (!S.isPinching) {
       onMove(e);
     }
@@ -1083,7 +1119,7 @@ function wireCanvas() {
     S.panX = midCX - imgMidX * newZoom;
     S.panY = midCY - imgMidY * newZoom;
     clampPan();
-    render();
+    scheduleRender();
   }, { passive: false });
   canvas.addEventListener('dblclick', e => {
     if (!S.img) return;
@@ -1102,19 +1138,43 @@ function onDown(e) {
 
   // ── 裁切工具 ──
   if (S.tool === 'crop') {
+    if (S.cropRect) {
+      const corner = findCropHandle(p, S.cropRect);
+      if (corner) { S.cropDragCorner = corner; return; }
+    }
     S.drawing = true;
     S.x0 = p.x; S.y0 = p.y;
     S.cropRect = null;
+    S.cropDragCorner = null;
     render();
     return;
   }
 
   // ── 文字工具：點選位置，開啟輸入彈窗 ──
   if (S.tool === 'text') {
-    // 如果點到現有文字標注，改為編輯它
+    // 已選取時先檢查 resize handle
+    if (S.selectedIdx !== -1) {
+      const box = getBoundingBox(S.annotations[S.selectedIdx]);
+      if (box) {
+        const handle = findHitHandle(p, box);
+        if (handle) {
+          S.isResizingSelected = true;
+          S.activeHandle = handle;
+          S.initAnno = JSON.parse(JSON.stringify(S.annotations[S.selectedIdx]));
+          S.initBox = box;
+          pushUndo();
+          return;
+        }
+      }
+    }
+    // 如果點到現有文字標注，改為拖移
     const hitIdx = findHitAnnotation(p);
     if (hitIdx !== -1 && S.annotations[hitIdx].type === 'text') {
       selectAnnotation(hitIdx);
+      S.isDraggingSelected = true;
+      S.dragStartX = p.x; S.dragStartY = p.y;
+      S.hasMovedSelected = false;
+      canvas.style.cursor = 'move';
       return;
     }
     S.pendTx = p.x; S.pendTy = p.y;
@@ -1181,7 +1241,17 @@ function onDown(e) {
 
 function onMove(e) {
   const p = pt(e);
-  
+
+  // ── 裁切 handle 拖移 ──
+  if (S.cropDragCorner && S.cropRect) {
+    const r = S.cropRect;
+    const opp = { tl:[r.x+r.w,r.y+r.h], tr:[r.x,r.y+r.h], bl:[r.x+r.w,r.y], br:[r.x,r.y] };
+    const [fx, fy] = opp[S.cropDragCorner];
+    S.cropRect = { x:Math.min(fx,p.x), y:Math.min(fy,p.y), w:Math.abs(p.x-fx), h:Math.abs(p.y-fy) };
+    scheduleRender();
+    return;
+  }
+
   if (S.isResizingSelected && S.selectedIdx !== -1) {
     const a = S.annotations[S.selectedIdx];
     const initA = S.initAnno;
@@ -1228,12 +1298,14 @@ function onMove(e) {
         const distInit = Math.hypot(iax - fx, iay - fy);
         const distCurr = Math.hypot(p.x - fx, p.y - fy);
         const scale = distInit > 0 ? distCurr / distInit : 1;
-        a.fs = Math.max(12, Math.min(350, Math.round(initA.fs * scale)));
+        a.fs = Math.max(12, Math.min(700, Math.round(initA.fs * scale)));
         a.x = fx + (initA.x - fx) * (a.fs / initA.fs);
         a.y = fy + (initA.y - fy) * (a.fs / initA.fs);
-        
+
         document.getElementById('font-sz').value = a.fs;
         document.getElementById('font-v').textContent = a.fs;
+        document.getElementById('m-font-sz').value = a.fs;
+        document.getElementById('m-font-v').textContent = a.fs;
         break;
       }
       case 'num': {
@@ -1259,10 +1331,10 @@ function onMove(e) {
         break;
       }
     }
-    render();
+    scheduleRender();
     return;
   }
-  
+
   if (S.isDraggingSelected && S.selectedIdx !== -1) {
     const dx = p.x - S.dragStartX;
     const dy = p.y - S.dragStartY;
@@ -1282,7 +1354,7 @@ function onMove(e) {
       }
       S.dragStartX = p.x;
       S.dragStartY = p.y;
-      render();
+      scheduleRender();
     }
     return;
   }
@@ -1307,12 +1379,28 @@ function onMove(e) {
     canvas.style.cursor = S.tool === 'select' ? 'default' : 'crosshair';
   }
 
+  // Show resize cursor when hovering over crop handles
+  if (S.tool === 'crop' && S.cropRect && !S.drawing) {
+    const corner = findCropHandle(p, S.cropRect);
+    if (corner) {
+      canvas.style.cursor = (corner === 'tl' || corner === 'br') ? 'nwse-resize' : 'nesw-resize';
+    } else {
+      canvas.style.cursor = 'crosshair';
+    }
+  }
+
   if (!S.drawing || !S.img) return;
   if (S.tool === 'freehand' || S.tool === 'highlight') S.pts.push({ x:p.x, y:p.y });
-  render(p);
+  scheduleRender(p);
 }
 
 function onUp(e) {
+  if (S.cropDragCorner) {
+    S.cropDragCorner = null;
+    canvas.style.cursor = 'crosshair';
+    render();
+    return;
+  }
   if (S.tool === 'select' || S.isDraggingSelected || S.isResizingSelected) {
     S.isDraggingSelected = false;
     S.isResizingSelected = false;
@@ -1365,12 +1453,17 @@ function render(live) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
   ctx.setTransform(S.zoom, 0, 0, S.zoom, S.panX, S.panY);
-  if (S.img) ctx.drawImage(S.img, 0, 0, canvas.width, canvas.height);
-  S.annotations.forEach(drawA);
-  if (S.drawing && live) { const prev = mkPreview(live); if (prev) drawA(prev); }
-  if (S.selectedIdx !== -1) {
-    const box = getBoundingBox(S.annotations[S.selectedIdx]);
-    if (box) drawSelectionBox(box.minX, box.minY, box.maxX, box.maxY);
+  if (S.tool === 'crop' && _sceneCache) {
+    // Fast path: single GPU blit of pre-rendered image+annotations
+    ctx.drawImage(_sceneCache, 0, 0);
+  } else {
+    if (S.img) ctx.drawImage(S.img, 0, 0, canvas.width, canvas.height);
+    S.annotations.forEach(drawA);
+    if (S.drawing && live) { const prev = mkPreview(live); if (prev) drawA(prev); }
+    if (S.selectedIdx !== -1) {
+      const box = getBoundingBox(S.annotations[S.selectedIdx]);
+      if (box) drawSelectionBox(box.minX, box.minY, box.maxX, box.maxY);
+    }
   }
   if (S.tool === 'crop') drawCropOverlay(S.cropRect, live);
   ctx.restore();
@@ -1447,24 +1540,33 @@ function updateSelectionUI(box) {
 
 function drawSelectionBox(minX, minY, maxX, maxY) {
   ctx.save();
-  const iz = 1 / S.zoom; // compensate so visual size stays constant regardless of zoom
+  const iz = 1 / S.zoom;
+
+  // Dashed border
   ctx.strokeStyle = '#2f6feb';
   ctx.lineWidth = 2.5 * iz;
   ctx.setLineDash([8 * iz, 6 * iz]);
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
   ctx.shadowBlur = 6 * iz;
   ctx.shadowOffsetX = iz; ctx.shadowOffsetY = iz;
   ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#2f6feb';
-  ctx.lineWidth = 2 * iz;
   ctx.setLineDash([]);
   ctx.shadowColor = 'transparent';
+
+  // Corner handles — larger squares with strong shadow
+  const hs = 11 * iz;
   const corners = [[minX, minY],[maxX, minY],[minX, maxY],[maxX, maxY]];
   corners.forEach(([cx, cy]) => {
-    ctx.beginPath();
-    ctx.arc(cx, cy, 6 * iz, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = 6 * iz;
+    ctx.shadowOffsetY = 2 * iz;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cx - hs, cy - hs, hs * 2, hs * 2);
+    ctx.shadowColor = 'transparent';
+    ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = '#2f6feb';
+    ctx.lineWidth = 2.5 * iz;
+    ctx.strokeRect(cx - hs, cy - hs, hs * 2, hs * 2);
   });
   ctx.restore();
 }
@@ -1661,19 +1763,30 @@ function clearAll() {
 function needImg() { if (!S.img) { showToast('請先上傳圖片'); return false; } return true; }
 
 // Returns a JPEG blob ≤ 1 MB by trying progressively lower quality levels.
+// Renders to an offscreen canvas so the visible canvas is never disturbed.
 async function getBlobCompressed() {
-  const MAX = 1 * 1024 * 1024; // 1 MB
+  const MAX = 1 * 1024 * 1024;
   const qualities = [0.92, 0.85, 0.75, 0.65, 0.5, 0.4, 0.3];
-  const z = S.zoom, px = S.panX, py = S.panY;
-  S.zoom = 1; S.panX = 0; S.panY = 0;
-  render();
+
+  const off = document.createElement('canvas');
+  off.width = canvas.width;
+  off.height = canvas.height;
+  const offCtx = off.getContext('2d');
+  if (S.img) offCtx.drawImage(S.img, 0, 0, canvas.width, canvas.height);
+  // Temporarily redirect the global ctx so drawA functions write to offCtx
+  const savedCtx = ctx;
+  try {
+    ctx = offCtx;
+    S.annotations.forEach(drawA);
+  } finally {
+    ctx = savedCtx;
+  }
+
   let blob;
   for (const q of qualities) {
-    blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', q));
+    blob = await new Promise(res => off.toBlob(res, 'image/jpeg', q));
     if (blob.size <= MAX) break;
   }
-  S.zoom = z; S.panX = px; S.panY = py;
-  render();
   return blob;
 }
 
@@ -1956,6 +2069,15 @@ function distToSeg(p, a, b) {
 }
 
 // ─── Crop ─────────────────────────────────────────────────────────────────────
+function findCropHandle(p, r) {
+  const thresh = 18 / S.zoom;
+  const pts = { tl:[r.x,r.y], tr:[r.x+r.w,r.y], bl:[r.x,r.y+r.h], br:[r.x+r.w,r.y+r.h] };
+  for (const [k,[hx,hy]] of Object.entries(pts)) {
+    if (Math.hypot(p.x-hx, p.y-hy) <= thresh) return k;
+  }
+  return null;
+}
+
 function drawCropOverlay(rect, live) {
   let r;
   if (S.drawing && live && !rect) {
@@ -1978,24 +2100,30 @@ function drawCropOverlay(rect, live) {
   ctx.rect(r.x, r.y, r.w, r.h);
   ctx.fill('evenodd');
 
-  // Dashed border
+  // Double-stroke border: dark base + white dash on top
+  ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 4 * iz;
+  ctx.strokeRect(r.x, r.y, r.w, r.h);
   ctx.strokeStyle = 'white';
-  ctx.lineWidth = 2 * iz;
-  ctx.setLineDash([8 * iz, 4 * iz]);
-  ctx.shadowColor = 'rgba(0,0,0,0.5)';
-  ctx.shadowBlur = 4 * iz;
+  ctx.lineWidth = 2.5 * iz;
+  ctx.setLineDash([10 * iz, 6 * iz]);
   ctx.strokeRect(r.x, r.y, r.w, r.h);
   ctx.setLineDash([]);
-  ctx.shadowColor = 'transparent';
 
-  // Corner handles
-  const hs = 9 * iz;
-  [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]].forEach(([cx, cy]) => {
+  // Corner handles (larger, with shadow)
+  const hs = 16 * iz;
+  [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]].forEach(([hx, hy]) => {
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 5 * iz;
+    ctx.shadowOffsetY = 1.5 * iz;
     ctx.fillStyle = 'white';
-    ctx.fillRect(cx - hs / 2, cy - hs / 2, hs, hs);
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-    ctx.lineWidth = iz;
-    ctx.strokeRect(cx - hs / 2, cy - hs / 2, hs, hs);
+    ctx.fillRect(hx - hs / 2, hy - hs / 2, hs, hs);
+    ctx.shadowColor = 'transparent';
+    ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1.5 * iz;
+    ctx.strokeRect(hx - hs / 2, hy - hs / 2, hs, hs);
   });
 
   ctx.restore();
@@ -2007,29 +2135,41 @@ function applyCrop() {
   if (w < 4 || h < 4) { cancelCrop(); return; }
 
   const cw = canvas.width, ch = canvas.height;
+  // Clamp crop rect to image bounds
+  const cx = Math.max(0, Math.round(x));
+  const cy = Math.max(0, Math.round(y));
+  const nw = Math.min(Math.round(w), cw - cx);
+  const nh = Math.min(Math.round(h), ch - cy);
+  if (nw < 1 || nh < 1) { cancelCrop(); return; }
+
+  // Render S.img at canvas dimensions first (handles both HTMLImageElement and
+  // HTMLCanvasElement correctly), then use 9-arg drawImage to crop cleanly.
+  const full = document.createElement('canvas');
+  full.width = cw; full.height = ch;
+  full.getContext('2d').drawImage(S.img, 0, 0, cw, ch);
+
   const off = document.createElement('canvas');
-  off.width = Math.round(w);
-  off.height = Math.round(h);
-  off.getContext('2d').drawImage(S.img, -x, -y, cw, ch);
+  off.width = nw; off.height = nh;
+  off.getContext('2d').drawImage(full, cx, cy, nw, nh, 0, 0, nw, nh);
 
   S.img = off;
-  canvas.width = Math.round(w);
-  canvas.height = Math.round(h);
+  canvas.width = nw;
+  canvas.height = nh;
 
-  S.annotations = S.annotations.map(a => shiftAnno(a, -x, -y));
-  S.undoStack   = S.undoStack.map(snap => snap.map(a => shiftAnno(a, -x, -y)));
-  S.redoStack   = S.redoStack.map(snap => snap.map(a => shiftAnno(a, -x, -y)));
+  S.annotations = S.annotations.map(a => shiftAnno(a, -cx, -cy));
+  S.undoStack   = S.undoStack.map(snap => snap.map(a => shiftAnno(a, -cx, -cy)));
+  S.redoStack   = S.redoStack.map(snap => snap.map(a => shiftAnno(a, -cx, -cy)));
 
   S.cropRect = null;
   S.zoom = 1; S.panX = 0; S.panY = 0;
-  setTool('arrow');
+  _sceneCache = buildSceneCache();
   render();
   showToast('已裁切圖片');
 }
 
 function cancelCrop() {
   S.cropRect = null;
-  setTool('arrow');
+  render();
 }
 
 function shiftAnno(a, dx, dy) {
