@@ -578,7 +578,7 @@ input[type="color"]#custom-col {
       </div>
     </div>
     <div style="padding: 12px; margin-top: auto; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-      <span>版本：v1.3.7 (穩定版)</span>
+      <span>版本：v1.3.8 (穩定版)</span>
       <span style="background: #eff6ff; color: var(--accent); padding: 2px 6px; border-radius: 4px; font-weight: 600; font-family: var(--mono);">PRO</span>
     </div>
   </aside>
@@ -1161,9 +1161,16 @@ function onDown(e) {
     }
   }
 
-  // 檢查是否點到既有標注
+  // 檢查是否點到既有標注（手繪和螢光不支援拖曳移動）
   const hitIdx = findHitAnnotation(p);
   if (hitIdx !== -1) {
+    const hitType = S.annotations[hitIdx].type;
+    if (hitType === 'free' || hitType === 'hi') {
+      // 手繪/螢光：只選取，不拖曳
+      selectAnnotation(hitIdx);
+      render();
+      return;
+    }
     selectAnnotation(hitIdx);
     S.isDraggingSelected = true;
     S.dragStartX = p.x;
